@@ -15,13 +15,13 @@ const OTP_EXPIRY_MS = 10 * 60 * 1000;
 
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, // Use SSL
+  port: 587,
+  secure: false, // Use STARTTLS (port 587)
   auth: {
     user: config.emailUser,
     pass: config.emailPass
   },
-  connectionTimeout: 10000, // 10 seconds
+  connectionTimeout: 10000,
   greetingTimeout: 10000,
   socketTimeout: 20000
 });
