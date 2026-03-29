@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Dashboard – HealthClo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+
+<body>
+
+    <!-- ===== Top Navigation Bar ===== -->
+    <nav class="navbar navbar-dark dashboard-navbar sticky-top">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand fw-bold" href="../index.html" style="font-size:1.4rem;">
+                <i class="bi bi-hospital-fill"></i> HealthClo
+            </a>
+            <div class="d-flex align-items-center gap-3 ms-auto">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <div
+                        style="width:34px;height:34px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;">
+                        <i class="bi bi-person-fill"></i>
+                    </div>
+                    <span class="text-white fw-500 d-none d-md-inline" style="font-size:.9rem;"
+                        id="navUserName">Patient</span>
+                </div>
+                <button onclick="logout()" class="btn btn-light btn-sm fw-600">
+                    <i class="bi bi-box-arrow-right"></i> Logout
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ===== Dashboard Wrapper ===== -->
+    <div class="dashboard-wrapper">
+
+        <!-- ===== Sidebar ===== -->
+        <nav class="sidebar-nav d-none d-lg-block">
+            <div class="sidebar-section-title">Main</div>
+            <div class="nav-link active" data-section="overview">
+                <i class="bi bi-house-fill"></i> Dashboard
+            </div>
+            <div class="nav-link" data-section="records">
+                <i class="bi bi-file-earmark-medical-fill"></i> My Records
+            </div>
+            <div class="nav-link" data-section="upload">
+                <i class="bi bi-cloud-arrow-up-fill"></i> Upload Record
+            </div>
+
+            <div class="sidebar-section-title">Access</div>
+            <div class="nav-link" data-section="consent">
+                <i class="bi bi-shield-check"></i> Manage Consent
+            </div>
+            <div class="nav-link" data-section="doctors">
+                <i class="bi bi-people-fill"></i> Trusted Doctors
+            </div>
+
+            <div class="sidebar-section-title">Account</div>
+            <div class="nav-link" data-section="profile">
+                <i class="bi bi-person-fill"></i> My Profile
+            </div>
+
+            <!-- Sidebar footer -->
+            <div style="position:absolute;bottom:20px;left:12px;right:12px;">
+                <div
+                    style="background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.25);border-radius:10px;padding:14px;text-align:center;">
+                    <i class="bi bi-shield-fill-check" style="font-size:1.5rem;color:#93c5fd;"></i>
+                    <p style="font-size:.75rem;color:rgba(255,255,255,.65);margin:8px 0 0;">Data Encrypted &amp; Secured
+                    </p>
+                </div>
+            </div>
+        </nav>
+
+        <!-- ===== Main Content ===== -->
+        <div class="main-content">
+
+            <!-- === OVERVIEW SECTION === -->
+            <section id="overview-section" class="content-section">
+                <div class="dashboard-header">
+                    <div>
+                        <h1><i class="bi bi-clipboard2-heart-fill"></i> My Health Dashboard</h1>
+                        <p>Welcome back, Sahasra! Manage your medical records securely.</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn-primary-sm" onclick="showSection('upload')">
+                            <i class="bi bi-cloud-arrow-up-fill"></i> Upload Record
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Objectives Reminder Banner -->
+                <div class="alert-info-light mb-4"
+                    style="border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:12px;">
+                    <i class="bi bi-robot" style="font-size:1.5rem;color:var(--primary);"></i>
+                    <div>
+                        <strong>AI Classification Active</strong> — Your uploaded documents are automatically
+                        categorized into departments with 99% accuracy.
+                        <a href="#" style="color:var(--primary-dark);margin-left:8px;font-size:.85rem;">Learn more →</a>
+                    </div>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-icon"><i class="bi bi-file-earmark-medical-fill"></i></span>
+                        <div class="stat-label">Total Records</div>
+                        <div class="stat-value" id="stat-total-records">—</div>
+                        <div class="stat-update">Across all departments</div>
+                    </div>
+                    <div class="stat-card success">
+                        <span class="stat-icon"><i class="bi bi-people-fill"></i></span>
+                        <div class="stat-label">Active Consents</div>
+                        <div class="stat-value" id="stat-active-doctors">—</div>
+                        <div class="stat-update">With access permissions</div>
+                    </div>
+                    <div class="stat-card info">
+                        <span class="stat-icon"><i class="bi bi-shield-check"></i></span>
+                        <div class="stat-label">Pending Consents</div>
+                        <div class="stat-value" id="stat-consent-requests">—</div>
+                        <div class="stat-update">Awaiting your approval</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <span class="stat-icon"><i class="bi bi-clock-history"></i></span>
+                        <div class="stat-label">Last Updated</div>
+                        <div class="stat-value" style="font-size:1.5rem;">Today</div>
+                        <div class="stat-update">2 hours ago</div>
+                    </div>
+                </div>
+
+                <!-- Row: Recent Activity + Health Summary -->
+                <div class="row g-4">
+                    <div class="col-lg-7">
+                        <div class="data-table">
+                            <div
+                                style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+                                <h5 style="margin:0;font-weight:700;color:var(--text-heading);font-size:1rem;">
+                                    <i class="bi bi-clock-history" style="color:var(--primary);"></i> Recent Activity
+                                </h5>
+                                <a href="#"
+                                    style="color:var(--primary);font-size:.85rem;font-weight:600;text-decoration:none;">View
+                                    all →</a>
+                            </div>
+                            <table class="table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Activity</th>
+                                        <th>Department</th>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><i class="bi bi-file-earmark-fill" style="color:var(--primary);"></i>
+                                            Cardiology Report Uploaded</td>
+                                        <td><span class="badge-dept badge-cardio">Cardiology</span></td>
+                                        <td>Feb 21, 2026</td>
+                                        <td><span class="badge bg-success-subtle text-success fw-600 rounded-pill">✓
+                                                Secured</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="bi bi-person-check-fill" style="color:var(--secondary);"></i> Dr.
+                                            Sarah Johnson Access</td>
+                                        <td><span class="badge-dept badge-general">Permission</span></td>
+                                        <td>Feb 20, 2026</td>
+                                        <td><span class="badge bg-success-subtle text-success fw-600 rounded-pill">✓
+                                                Granted</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="bi bi-file-earmark-fill" style="color:var(--primary);"></i> X-Ray
+                                            Report Uploaded</td>
+                                        <td><span class="badge-dept badge-ortho">Orthopedics</span></td>
+                                        <td>Feb 18, 2026</td>
+                                        <td><span class="badge bg-success-subtle text-success fw-600 rounded-pill">✓
+                                                Secured</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="bi bi-robot" style="color:var(--accent);"></i> AI Classification
+                                            Run</td>
+                                        <td><span class="badge-dept badge-neuro">Neurology</span></td>
+                                        <td>Feb 15, 2026</td>
+                                        <td><span class="badge bg-primary-subtle text-primary fw-600 rounded-pill">✓
+                                                Classified</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-5">
+                        <!-- Health Summary -->
+                        <div class="health-widget mb-3">
+                            <h5><i class="bi bi-heart-pulse-fill" style="color:var(--danger);"></i> Health Summary</h5>
+                            <div class="health-item">
+                                <i class="bi bi-calendar-check"></i>
+                                <span class="label">Previous Visits</span>
+                                <span class="value">8 visits</span>
+                            </div>
+                            <div class="health-item">
+                                <i class="bi bi-droplet-fill" style="color:var(--danger);"></i>
+                                <span class="label">Blood Type</span>
+                                <span class="value">O+</span>
+                            </div>
+                            <div class="health-item">
+                                <i class="bi bi-exclamation-triangle-fill" style="color:var(--warn);"></i>
+                                <span class="label">Allergies</span>
+                                <span class="value">Penicillin</span>
+                            </div>
+                            <div class="health-item">
+                                <i class="bi bi-clipboard2-check-fill" style="color:var(--secondary);"></i>
+                                <span class="label">Last Test</span>
+                                <span class="value">Cholesterol · Normal</span>
+                            </div>
+                            <div class="health-item">
+                                <i class="bi bi-person-badge-fill"></i>
+                                <span class="label">Primary Doctor</span>
+                                <span class="value">Dr. Sarah Johnson</span>
+                            </div>
+                        </div>
+
+                        <!-- Quick actions -->
+                        <div class="health-widget">
+                            <h5><i class="bi bi-lightning-charge-fill" style="color:var(--warn);"></i> Quick Actions
+                            </h5>
+                            <div class="d-grid gap-2 mt-2">
+                                <button class="btn-primary-sm" onclick="showSection('upload')">
+                                    <i class="bi bi-cloud-arrow-up-fill"></i> Upload New Record
+                                </button>
+                                <button class="btn-success-sm" onclick="showSection('consent')">
+                                    <i class="bi bi-shield-plus"></i> Grant Doctor Access
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Objectives Showcase Row -->
+                <div class="mt-4">
+                    <h5 style="font-weight:700;color:var(--text-heading);margin-bottom:16px;">
+                        <i class="bi bi-bullseye" style="color:var(--primary);"></i> System Objectives
+                    </h5>
+                    <div class="row g-3">
+                        <div class="col-sm-6 col-md-4">
+                            <div
+                                style="background:var(--primary-light);border:1px solid #bfdbfe;border-radius:var(--radius-sm);padding:14px 16px;display:flex;align-items:center;gap:10px;">
+                                <i class="bi bi-archive-fill" style="font-size:1.4rem;color:var(--primary);"></i>
+                                <div>
+                                    <div style="font-weight:700;font-size:.85rem;color:var(--text-heading);">Centralized
+                                        Records</div>
+                                    <div style="font-size:.78rem;color:var(--text-muted);">All records in one secure
+                                        place</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-md-4">
+                            <div
+                                style="background:var(--secondary-light);border:1px solid #6ee7b7;border-radius:var(--radius-sm);padding:14px 16px;display:flex;align-items:center;gap:10px;">
+                                <i class="bi bi-robot" style="font-size:1.4rem;color:var(--secondary);"></i>
+                                <div>
+                                    <div style="font-weight:700;font-size:.85rem;color:var(--text-heading);">AI
+                                        Classification</div>
+                                    <div style="font-size:.78rem;color:var(--text-muted);">Auto-sorted by department
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-md-4">
+                            <div
+                                style="background:var(--accent-light);border:1px solid #c4b5fd;border-radius:var(--radius-sm);padding:14px 16px;display:flex;align-items:center;gap:10px;">
+                                <i class="bi bi-person-check-fill" style="font-size:1.4rem;color:var(--accent);"></i>
+                                <div>
+                                    <div style="font-weight:700;font-size:.85rem;color:var(--text-heading);">Consent
+                                        Control</div>
+                                    <div style="font-size:.78rem;color:var(--text-muted);">You control who sees data
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-md-4">
+                            <div
+                                style="background:var(--warn-light);border:1px solid #fcd34d;border-radius:var(--radius-sm);padding:14px 16px;display:flex;align-items:center;gap:10px;">
+                                <i class="bi bi-arrow-repeat" style="font-size:1.4rem;color:var(--warn);"></i>
+                                <div>
+                                    <div style="font-weight:700;font-size:.85rem;color:var(--text-heading);">Reduce
+                                        Redundant Tests</div>
+                                    <div style="font-size:.78rem;color:var(--text-muted);">Access past diagnostic
+                                        reports</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-md-4">
+                            <div
+                                style="background:var(--info-light);border:1px solid #7dd3fc;border-radius:var(--radius-sm);padding:14px 16px;display:flex;align-items:center;gap:10px;">
+                                <i class="bi bi-shield-lock-fill" style="font-size:1.4rem;color:var(--info);"></i>
+                                <div>
+                                    <div style="font-weight:700;font-size:.85rem;color:var(--text-heading);">Data
+                                        Security</div>
+                                    <div style="font-size:.78rem;color:var(--text-muted);">AES-256 encryption always on
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-md-4">
+                            <div
+                                style="background:var(--danger-light);border:1px solid #fda4af;border-radius:var(--radius-sm);padding:14px 16px;display:flex;align-items:center;gap:10px;">
+                                <i class="bi bi-lightning-charge-fill"
+                                    style="font-size:1.4rem;color:var(--danger);"></i>
+                                <div>
+                                    <div style="font-weight:700;font-size:.85rem;color:var(--text-heading);">Healthcare
+                                        Efficiency</div>
+                                    <div style="font-size:.78rem;color:var(--text-muted);">Faster diagnosis &amp;
+                                        treatment</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- === MY RECORDS SECTION === -->
+            <section id="records-section" class="content-section" style="display:none;">
+                <div class="dashboard-header">
+                    <div>
+                        <h1><i class="bi bi-file-earmark-medical-fill"></i> My Medical Records</h1>
+                        <p>AI-classified records organized by department</p>
+                    </div>
+                    <button class="btn-primary-sm" onclick="showSection('upload')">
+                        <i class="bi bi-plus-lg"></i> Upload New
+                    </button>
+                </div>
+                <div id="patient-records">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </section>
+
+            <!-- === UPLOAD SECTION === -->
+            <section id="upload-section" class="content-section" style="display:none;">
+                <div class="dashboard-header">
+                    <div>
+                        <h1><i class="bi bi-cloud-arrow-up-fill"></i> Upload Medical Record</h1>
+                        <p>Documents are automatically encrypted and AI-classified</p>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-lg-8">
+                        <div class="data-table p-4">
+                            <div class="mb-4">
+                                <label class="form-label">Select Medical Document</label>
+                                <div class="upload-zone" id="upload-zone"
+                                    onclick="document.getElementById('fileInput2').click()">
+                                    <i class="bi bi-cloud-arrow-up"></i>
+                                    <strong>Click to upload or drag &amp; drop</strong>
+                                    <p>PDF, JPG, PNG (Max 15MB) — AI will auto-classify</p>
+                                    <input type="file" id="fileInput2" style="display:none;"
+                                        accept=".pdf,.jpg,.jpeg,.png">
+                                </div>
+                            </div>
+                            <!-- Camera Scan UI -->
+                            <div id="camera-scan-ui" style="display:none;" class="mb-4">
+                                <div class="ratio ratio-16x9 mb-2"
+                                    style="background:#000; border-radius:var(--radius-sm); overflow:hidden;">
+                                    <video id="scan-video" autoplay playsinline></video>
+                                </div>
+                                <canvas id="scan-canvas" style="display:none;"></canvas>
+                                <div class="d-flex gap-2 justify-content-center">
+                                    <button class="btn btn-danger btn-sm" onclick="stopCamera()">
+                                        <i class="bi bi-x-circle"></i> Cancel
+                                    </button>
+                                    <button class="btn btn-primary btn-sm" onclick="capturePhoto()">
+                                        <i class="bi bi-camera-fill"></i> Capture Photo
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Description (Optional)</label>
+                                <textarea class="form-control" rows="3" id="uploadDescription"
+                                    placeholder="Add notes about this document..."></textarea>
+                            </div>
+                            <!-- OCR Progress -->
+                            <div id="ocr-status" class="mb-3" style="display:none;">
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                    <span style="font-size:.85rem; font-weight:600; color:var(--primary);"
+                                        id="ocr-message">AI is reading document... 0%</span>
+                                </div>
+                                <div class="progress" style="height:4px;">
+                                    <div id="ocr-progress-bar"
+                                        class="progress-bar progress-bar-striped progress-bar-animated"
+                                        style="width:0%;"></div>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn-primary-sm" id="uploadBtn">
+                                    <i class="bi bi-cloud-arrow-up-fill"></i> Upload &amp; Auto-Classify
+                                </button>
+                                <button class="btn btn-outline-primary btn-sm" onclick="initCamera()"
+                                    id="start-scan-btn">
+                                    <i class="bi bi-camera-fill"></i> Scan with Camera
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="health-widget">
+                            <h5><i class="bi bi-info-circle-fill" style="color:var(--primary);"></i> Upload Tips</h5>
+                            <ul class="list-unstyled" style="font-size:.88rem;margin-top:12px;">
+                                <li class="mb-2"><i class="bi bi-check-circle-fill" style="color:var(--secondary);"></i>
+                                    All documents are AES-256 encrypted</li>
+                                <li class="mb-2"><i class="bi bi-check-circle-fill" style="color:var(--secondary);"></i>
+                                    You control who can access files</li>
+                                <li class="mb-2"><i class="bi bi-check-circle-fill" style="color:var(--secondary);"></i>
+                                    AI auto-classifies by department</li>
+                                <li class="mb-2"><i class="bi bi-check-circle-fill" style="color:var(--secondary);"></i>
+                                    HIPAA &amp; GDPR compliant</li>
+                                <li class="mb-2"><i class="bi bi-check-circle-fill" style="color:var(--secondary);"></i>
+                                    Download anytime, anywhere</li>
+                            </ul>
+                        </div>
+                        <div class="health-widget mt-3"
+                            style="background:var(--primary-light);border:1px solid #bfdbfe;">
+                            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                                <i class="bi bi-robot" style="font-size:1.5rem;color:var(--primary);"></i>
+                                <strong style="color:var(--primary-dark);">AI Classification</strong>
+                            </div>
+                            <p style="font-size:.82rem;color:var(--text-muted);margin:0;">After upload, our AI agent
+                                will automatically categorize your document into the correct medical department.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- === CONSENT SECTION === -->
+            <section id="consent-section" class="content-section" style="display:none;">
+                <div class="dashboard-header">
+                    <div>
+                        <h1><i class="bi bi-shield-check"></i> Manage Consent</h1>
+                        <p>Control access to your medical records — grant, limit or revoke at any time</p>
+                    </div>
+                    <button class="btn-primary-sm" data-bs-toggle="modal" data-bs-target="#addDoctorModal">
+                        <i class="bi bi-plus-lg"></i> Grant New Access
+                    </button>
+                </div>
+
+                <!-- Consent objective note -->
+                <div
+                    style="background:var(--accent-light);border:1px solid #c4b5fd;border-radius:var(--radius-sm);padding:14px 18px;margin-bottom:20px;display:flex;gap:12px;align-items:center;">
+                    <i class="bi bi-person-check-fill" style="font-size:1.4rem;color:var(--accent);"></i>
+                    <div style="font-size:.88rem;"><strong style="color:var(--text-heading);">Consent-Based Access
+                            Control</strong> — You decide who can view your medical data. Access can be revoked at any
+                        time.</div>
+                </div>
+
+                <div class="data-table">
+                    <table class="table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Doctor</th>
+                                <th>Status</th>
+                                <th>Access Level</th>
+                                <th>Granted</th>
+                                <th>Expires</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="consent-table-body">
+                            <tr>
+                                <td colspan="6" style="text-align:center;color:var(--text-muted);">Loading…</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- === DOCTORS SECTION === -->
+            <section id="doctors-section" class="content-section" style="display:none;">
+                <div class="dashboard-header">
+                    <div>
+                        <h1><i class="bi bi-people-fill"></i> Trusted Doctors</h1>
+                        <p>Your authorized healthcare providers</p>
+                    </div>
+                </div>
+                <div class="row g-4">
+                    <div class="col-md-6 col-lg-4">
+                        <div class="doctor-card">
+                            <div class="doctor-avatar"><i class="bi bi-person-fill"></i></div>
+                            <h6>Dr. Sarah Johnson</h6>
+                            <small class="text-muted d-block">Cardiologist</small>
+                            <small class="text-muted d-block mb-3">HealthClo Hospital</small>
+                            <span class="badge-status-granted">Access Granted</span>
+                            <div class="mt-3 d-flex gap-2 justify-content-center">
+                                <button class="btn-primary-sm btn-sm"><i class="bi bi-telephone"></i> Contact</button>
+                                <button class="btn btn-sm btn-outline-secondary">View Profile</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-4">
+                        <div class="doctor-card">
+                            <div class="doctor-avatar"><i class="bi bi-person-fill"></i></div>
+                            <h6>Dr. Michael Chen</h6>
+                            <small class="text-muted d-block">General Practitioner</small>
+                            <small class="text-muted d-block mb-3">HealthClo Hospital</small>
+                            <span class="badge-status-granted">Access Granted</span>
+                            <div class="mt-3 d-flex gap-2 justify-content-center">
+                                <button class="btn-primary-sm btn-sm"><i class="bi bi-telephone"></i> Contact</button>
+                                <button class="btn btn-sm btn-outline-secondary">View Profile</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-4">
+                        <div class="doctor-card">
+                            <div class="doctor-avatar" style="background:var(--warn-light);color:var(--warn);"><i
+                                    class="bi bi-person-fill"></i></div>
+                            <h6>Dr. Patel</h6>
+                            <small class="text-muted d-block">Neurologist</small>
+                            <small class="text-muted d-block mb-3">HealthClo Hospital</small>
+                            <span class="badge-status-pending">Pending Approval</span>
+                            <div class="mt-3 d-flex gap-2 justify-content-center">
+                                <button class="btn-success-sm btn-sm"><i class="bi bi-check-lg"></i> Approve</button>
+                                <button class="btn btn-sm btn-outline-danger">Decline</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- === PROFILE SECTION === -->
+            <section id="profile-section" class="content-section" style="display:none;">
+                <div class="dashboard-header">
+                    <div>
+                        <h1><i class="bi bi-person-fill"></i> My Profile</h1>
+                        <p>Personal health information &amp; settings</p>
+                    </div>
+                </div>
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <div class="data-table p-4">
+                            <h5 class="mb-4" style="font-weight:700;"><i class="bi bi-person-vcard-fill"
+                                    style="color:var(--primary);"></i> Personal Information</h5>
+                            <div class="mb-3">
+                                <label class="form-label">Full Name</label>
+                                <input type="text" class="form-control" value="Sahasra">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Date of Birth</label>
+                                <input type="date" class="form-control" value="1990-05-15">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Blood Type</label>
+                                <select class="form-select">
+                                    <option selected>O+</option>
+                                    <option>A+</option>
+                                    <option>B+</option>
+                                    <option>AB+</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Known Allergies</label>
+                                <input type="text" class="form-control" value="Penicillin">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="data-table p-4">
+                            <h5 class="mb-4" style="font-weight:700;"><i class="bi bi-envelope-fill"
+                                    style="color:var(--primary);"></i> Contact Information</h5>
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" value="sahasra@email.com">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Phone Number</label>
+                                <input type="tel" class="form-control" value="+1 (555) 987-6543">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Emergency Contact</label>
+                                <input type="tel" class="form-control" placeholder="+1 (555) 000-0000">
+                            </div>
+                            <button class="btn-success-sm">
+                                <i class="bi bi-check-lg"></i> Save Changes
+                            </button>
+                        </div>
+
+                        <!-- Security Settings -->
+                        <div class="health-widget mt-4">
+                            <h5><i class="bi bi-shield-lock-fill" style="color:var(--primary);"></i> Security Settings
+                            </h5>
+                            <div class="d-flex justify-content-between align-items-center py-2"
+                                style="border-bottom:1px solid var(--border);">
+                                <div style="font-size:.9rem;font-weight:500;">Two-Factor Authentication</div>
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" checked>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center py-2">
+                                <div style="font-size:.9rem;font-weight:500;">Email Notifications</div>
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" checked>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div><!-- /main-content -->
+    </div><!-- /dashboard-wrapper -->
+
+    <!-- ===== Grant Doctor Modal ===== -->
+    <div class="modal fade" id="addDoctorModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-person-plus-fill"></i> Grant Doctor Access</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label">Doctor ID <small class="text-muted">(Ask your doctor to share their
+                                account ID)</small></label>
+                        <input type="text" class="form-control" id="grantDoctorId"
+                            placeholder="e.g. 3fa85f64-5717-4562-b3fc-2c963f66afa6">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Access Level</label>
+                        <select class="form-select" id="grantAccessLevel">
+                            <option value="view" selected>View Only</option>
+                            <option value="full">Full Access</option>
+                            <option value="limited">Limited</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Access Expiration Date (Optional)</label>
+                        <input type="date" class="form-control" id="grantExpires">
+                    </div>
+                    <div
+                        style="background:var(--accent-light);border-radius:var(--radius-sm);padding:12px;font-size:.82rem;color:var(--text-muted);">
+                        <i class="bi bi-info-circle-fill" style="color:var(--accent);"></i>
+                        You can revoke this access at any time from the Manage Consent section.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn-success-sm" onclick="grantConsentById()">
+                        <i class="bi bi-check-lg"></i> Grant Access
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
+    <script src="../js/patient-dashboard.js"></script>
+
+    <script>
+        function showSection(id) {
+            document.querySelectorAll('.content-section').forEach(s => s.style.display = 'none');
+            document.getElementById(id + '-section').style.display = 'block';
+            document.querySelectorAll('.sidebar-nav .nav-link').forEach(l => {
+                l.classList.toggle('active', l.dataset.section === id);
+            });
+            window.scrollTo(0, 0);
+            // Trigger live data loads
+            if (id === 'records' && typeof loadAndRenderRecords === 'function') loadAndRenderRecords();
+            if (id === 'consent' && typeof loadAndRenderConsents === 'function') loadAndRenderConsents();
+        }
+
+        document.querySelectorAll('.sidebar-nav .nav-link').forEach(link => {
+            link.addEventListener('click', function () {
+                showSection(this.dataset.section);
+            });
+        });
+    </script>
+
+</body>
+
+</html>

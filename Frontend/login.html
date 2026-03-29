@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In – HealthClo</title>
+    <meta name="description"
+        content="Sign in to your HealthClo account using email or phone number with secure OTP verification.">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body class="auth-page">
+
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg" style="background:transparent;">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="index.html" style="font-size:1.4rem;color:var(--text-heading);">
+                <i class="bi bi-hospital-fill" style="color:var(--primary);"></i> HealthClo
+            </a>
+            <a href="register.html" class="btn btn-outline-primary btn-sm ms-auto">
+                <i class="bi bi-person-plus"></i> Register
+            </a>
+        </div>
+    </nav>
+
+    <!-- Login Container -->
+    <div class="container py-4">
+        <div class="row align-items-start justify-content-center g-5"
+            style="min-height:85vh;align-items:center!important;">
+
+            <!-- Left Panel -->
+            <div class="col-lg-5 d-none d-lg-block auth-left-panel">
+                <div class="mb-4">
+                    <span
+                        style="background:var(--primary-light);color:var(--primary-dark);border-radius:50px;padding:5px 14px;font-size:.8rem;font-weight:700;">
+                        <i class="bi bi-shield-fill-check"></i> Trusted Healthcare Platform
+                    </span>
+                </div>
+                <h1 class="mb-3">Welcome <span style="color:var(--primary);">Back!</span></h1>
+                <p class="mb-4">Secure access to your complete medical records and healthcare management dashboard.</p>
+
+                <div class="auth-feature">
+                    <div class="auth-feature-icon"><i class="bi bi-shield-lock-fill"></i></div>
+                    <div>
+                        <h6>Bank-Level Encryption</h6>
+                        <small>AES-256 encryption protects every record</small>
+                    </div>
+                </div>
+                <div class="auth-feature">
+                    <div class="auth-feature-icon"><i class="bi bi-robot"></i></div>
+                    <div>
+                        <h6>AI-Based Classification</h6>
+                        <small>Documents auto-sorted into departments</small>
+                    </div>
+                </div>
+                <div class="auth-feature">
+                    <div class="auth-feature-icon"><i class="bi bi-person-check-fill"></i></div>
+                    <div>
+                        <h6>Consent-Based Access</h6>
+                        <small>You control who sees your medical data</small>
+                    </div>
+                </div>
+                <div class="auth-feature">
+                    <div class="auth-feature-icon"><i class="bi bi-arrow-repeat"></i></div>
+                    <div>
+                        <h6>Reduce Redundant Tests</h6>
+                        <small>Doctors access past reports instantly</small>
+                    </div>
+                </div>
+
+                <!-- Compliance badges -->
+                <div class="mt-4 d-flex flex-wrap gap-2">
+                    <span
+                        style="background:rgba(16,185,129,.1);color:#065f46;border-radius:50px;padding:5px 14px;font-size:.78rem;font-weight:600;border:1px solid rgba(16,185,129,.2);">✓
+                        HIPAA Compliant</span>
+                    <span
+                        style="background:rgba(59,130,246,.1);color:#1e40af;border-radius:50px;padding:5px 14px;font-size:.78rem;font-weight:600;border:1px solid rgba(59,130,246,.2);">✓
+                        GDPR Ready</span>
+                    <span
+                        style="background:rgba(139,92,246,.1);color:#5b21b6;border-radius:50px;padding:5px 14px;font-size:.78rem;font-weight:600;border:1px solid rgba(139,92,246,.2);">✓
+                        SOC 2 Certified</span>
+                </div>
+            </div>
+
+            <!-- Right – Login Form -->
+            <div class="col-lg-5 col-md-9 col-12">
+                <div class="auth-card">
+                    <div class="text-center mb-4">
+                        <div
+                            style="width:60px;height:60px;background:var(--primary-light);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:1.8rem;color:var(--primary);">
+                            <i class="bi bi-lock-fill"></i>
+                        </div>
+                        <h3>Sign In</h3>
+                        <p class="text-muted" style="font-size:.9rem;">Access your HealthClo account</p>
+                    </div>
+
+                    <!-- ===== Email / Phone Toggle ===== -->
+                    <div class="auth-tabs mb-4">
+                        <button type="button" class="auth-tab active" id="emailTab" onclick="toggleAuthMode('email')">
+                            <i class="bi bi-envelope-fill"></i> Email
+                        </button>
+                        <button type="button" class="auth-tab" id="phoneTab" onclick="toggleAuthMode('phone')">
+                            <i class="bi bi-phone-fill"></i> Phone
+                        </button>
+                    </div>
+
+                    <form onsubmit="event.preventDefault();">
+                        <!-- ===== EMAIL LOGIN SECTION ===== -->
+                        <div id="emailLoginSection">
+                            <div class="mb-3">
+                                <label class="form-label">Email Address</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"
+                                        style="background:var(--primary-light);border-color:var(--border);"><i
+                                            class="bi bi-envelope" style="color:var(--primary);"></i></span>
+                                    <input type="email" class="form-control" id="loginEmail"
+                                        placeholder="you@example.com" required>
+                                </div>
+                            </div>
+
+                            <div class="mb-2">
+                                <label class="form-label">Password</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"
+                                        style="background:var(--primary-light);border-color:var(--border);"><i
+                                            class="bi bi-key" style="color:var(--primary);"></i></span>
+                                    <input type="password" class="form-control" id="loginPassword"
+                                        placeholder="Enter your password" required>
+                                    <button class="input-group-text" type="button"
+                                        style="cursor:pointer;border-color:var(--border);"
+                                        onclick="togglePasswordVisibility('loginPassword', 'loginEyeIcon')">
+                                        <i class="bi bi-eye" id="loginEyeIcon" style="color:var(--text-muted);"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="mb-4 text-end">
+                                <a href="#" data-bs-toggle="modal" data-bs-target="#forgotPasswordModal"
+                                    style="color:var(--primary);font-size:.85rem;text-decoration:none;font-weight:500;">Forgot
+                                    password?</a>
+                            </div>
+                        </div>
+
+                        <!-- ===== PHONE LOGIN SECTION ===== -->
+                        <div id="phoneLoginSection" style="display:none;">
+                            <div class="mb-3">
+                                <label class="form-label">Phone Number</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"
+                                        style="background:var(--primary-light);border-color:var(--border);padding:0;">
+                                        <select class="form-select border-0"
+                                            style="background:transparent;width:80px;font-size:.85rem;padding:8px;">
+                                            <option value="+91">🇮🇳 +91</option>
+                                            <option value="+1">🇺🇸 +1</option>
+                                            <option value="+44">🇬🇧 +44</option>
+                                            <option value="+61">🇦🇺 +61</option>
+                                            <option value="+81">🇯🇵 +81</option>
+                                        </select>
+                                    </span>
+                                    <input type="tel" class="form-control phone-input" id="loginPhone"
+                                        placeholder="Enter 10-digit number" maxlength="10">
+                                </div>
+                            </div>
+
+                            <button type="button" class="btn btn-outline-primary w-100 mb-3"
+                                onclick="sendOtp('loginOtpContainer')"
+                                style="font-weight:600;border-radius:var(--radius-sm);">
+                                <i class="bi bi-send-fill"></i> Send OTP
+                            </button>
+
+                            <!-- OTP Input -->
+                            <div id="loginOtpContainer" style="display:none;">
+                                <label class="form-label">Enter 6-digit OTP</label>
+                                <div class="otp-input-group mb-2">
+                                    <input type="text" class="otp-digit" maxlength="1" inputmode="numeric"
+                                        oninput="handleOtpInput(this, 0, 5)"
+                                        onkeydown="handleOtpKeydown(event, this, 0)">
+                                    <input type="text" class="otp-digit" maxlength="1" inputmode="numeric"
+                                        oninput="handleOtpInput(this, 1, 5)"
+                                        onkeydown="handleOtpKeydown(event, this, 1)">
+                                    <input type="text" class="otp-digit" maxlength="1" inputmode="numeric"
+                                        oninput="handleOtpInput(this, 2, 5)"
+                                        onkeydown="handleOtpKeydown(event, this, 2)">
+                                    <input type="text" class="otp-digit" maxlength="1" inputmode="numeric"
+                                        oninput="handleOtpInput(this, 3, 5)"
+                                        onkeydown="handleOtpKeydown(event, this, 3)">
+                                    <input type="text" class="otp-digit" maxlength="1" inputmode="numeric"
+                                        oninput="handleOtpInput(this, 4, 5)"
+                                        onkeydown="handleOtpKeydown(event, this, 4)">
+                                    <input type="text" class="otp-digit" maxlength="1" inputmode="numeric"
+                                        oninput="handleOtpInput(this, 5, 5)"
+                                        onkeydown="handleOtpKeydown(event, this, 5)">
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="otp-timer" style="font-size:.82rem;color:var(--text-muted);"></span>
+                                    <button type="button" class="otp-resend-btn" style="display:none;"
+                                        onclick="sendOtp('loginOtpContainer')">Resend OTP</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ===== ROLE SELECTOR ===== -->
+                        <div class="mb-4">
+                            <label class="form-label">Login As</label>
+                            <select id="role" class="form-select" required>
+                                <option value="patient">🏥 Patient</option>
+                                <option value="doctor">👨‍⚕️ Doctor</option>
+                                <option value="admin">🛡️ Administrator</option>
+                            </select>
+                        </div>
+
+                        <button type="button" id="loginBtn" onclick="handleLogin()"
+                            class="btn-primary-healthcare w-100 justify-content-center"
+                            style="border-radius:var(--radius-sm);">
+                            <i class="bi bi-box-arrow-in-right"></i> Sign In to Dashboard
+                        </button>
+                    </form>
+
+                    <hr class="my-4" style="border-color:var(--border);">
+
+                    <p class="text-center" style="font-size:.9rem;color:var(--text-muted);">
+                        Don't have an account?
+                        <a href="register.html"
+                            style="color:var(--primary);font-weight:700;text-decoration:none;">Create one free →</a>
+                    </p>
+                </div>
+
+                <p class="text-center mt-3" style="font-size:.8rem;color:var(--text-muted);">
+                    <i class="bi bi-shield-check" style="color:var(--secondary);"></i>
+                    HIPAA Compliant &nbsp;|&nbsp; Secure &nbsp;|&nbsp; Trusted by Healthcare Professionals
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== FORGOT PASSWORD MODAL ===== -->
+    <div class="modal fade" id="forgotPasswordModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius:var(--radius-lg);overflow:hidden;">
+                <div class="modal-header"
+                    style="background:linear-gradient(135deg, var(--primary), var(--primary-dark));border:none;">
+                    <h5 class="modal-title text-white"><i class="bi bi-key-fill me-2"></i>Reset Password</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
+                        style="filter:brightness(0) invert(1);"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-muted" style="font-size:.9rem;">Enter your email or phone number to receive a
+                        password reset link.</p>
+
+                    <div class="auth-tabs mb-3" style="max-width:100%;">
+                        <button type="button" class="auth-tab active" id="resetEmailTab"
+                            onclick="toggleResetMode('email')">
+                            <i class="bi bi-envelope"></i> Email
+                        </button>
+                        <button type="button" class="auth-tab" id="resetPhoneTab" onclick="toggleResetMode('phone')">
+                            <i class="bi bi-phone"></i> Phone
+                        </button>
+                    </div>
+
+                    <div id="resetEmailSection">
+                        <div class="mb-3">
+                            <label class="form-label">Email Address</label>
+                            <input type="email" class="form-control" id="resetEmail" placeholder="you@example.com">
+                        </div>
+                    </div>
+                    <div id="resetPhoneSection" style="display:none;">
+                        <div class="mb-3">
+                            <label class="form-label">Phone Number</label>
+                            <input type="tel" class="form-control" id="resetPhone" placeholder="Enter 10-digit number"
+                                maxlength="10">
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn-primary-healthcare w-100 justify-content-center"
+                        style="border-radius:var(--radius-sm);" onclick="sendResetLink()">
+                        <i class="bi bi-send-fill"></i> Send Reset Link
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/script.js"></script>
+    <script src="js/auth.js"></script>
+</body>
+
+</html>

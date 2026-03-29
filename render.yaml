@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: medicare-hms
+    env: node
+    buildCommand: cd Backend && npm install
+    startCommand: cd Backend && npm start
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_PATH
+        value: ./data/app.db
+      - key: CORS_ORIGIN
+        value: "*"
+    disk:
+      name: data-storage
+      mountPath: /opt/render/project/src/Backend/data
+      sizeGB: 1

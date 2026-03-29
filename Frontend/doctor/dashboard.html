@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Doctor Dashboard - MediCare</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<!-- Navigation Bar -->
+<nav class="navbar navbar-dark dashboard-navbar sticky-top">
+    <div class="container-fluid px-5">
+        <a class="navbar-brand fw-bold" href="../index.html"><i class="bi bi-hospital"></i> MediCare</a>
+        <div class="d-flex align-items-center gap-3">
+            <span class="text-white"><i class="bi bi-person-circle"></i> Dr. Sarah Johnson</span>
+            <a href="../login.html" class="btn btn-light btn-sm">Logout</a>
+        </div>
+    </div>
+</nav>
+
+<!-- Main Container -->
+<div class="dashboard-wrapper">
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar-nav">
+        <div class="nav-link active" data-section="overview"><i class="bi bi-speedometer2"></i> Overview</div>
+        <div class="nav-link" data-section="patients"><i class="bi bi-people"></i> My Patients</div>
+        <div class="nav-link" data-section="files"><i class="bi bi-file-earmark-medical"></i> Medical Records</div>
+        <div class="nav-link" data-section="appointments"><i class="bi bi-calendar-check"></i> Appointments</div>
+        <div class="nav-link" data-section="profile"><i class="bi bi-person"></i> Profile</div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Overview Section -->
+        <section id="overview-section" class="content-section">
+            <div class="dashboard-header">
+                <h1><i class="bi bi-stethoscope"></i> Doctor Dashboard</h1>
+                <p>Patient Records & Department Overview</p>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Patients</div>
+                    <div class="stat-value">24</div>
+                    <div class="stat-update">Under my care</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="stat-label">Medical Records</div>
+                    <div class="stat-value">87</div>
+                    <div class="stat-update">Cardiology files</div>
+                </div>
+                <div class="stat-card warning">
+                    <div class="stat-label">Pending Reviews</div>
+                    <div class="stat-value">5</div>
+                    <div class="stat-update">Awaiting action</div>
+                </div>
+                <div class="stat-card info">
+                    <div class="stat-label">Appointments Today</div>
+                    <div class="stat-value">8</div>
+                    <div class="stat-update">Scheduled consultations</div>
+                </div>
+            </div>
+
+            <!-- Recent Patients Table -->
+            <div class="data-table mt-4">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th><i class="bi bi-person"></i> Patient</th>
+                            <th>Department</th>
+                            <th>Last Visit</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>John Doe</td>
+                            <td><span class="badge badge-cardio">Cardiology</span></td>
+                            <td>2026-02-20</td>
+                            <td><span class="badge bg-success">Stable</span></td>
+                            <td><button class="btn btn-sm btn-primary-sm"><i class="bi bi-file-earmark"></i> View Records</button></td>
+                        </tr>
+                        <tr>
+                            <td>Jane Smith</td>
+                            <td><span class="badge badge-cardio">Cardiology</span></td>
+                            <td>2026-02-18</td>
+                            <td><span class="badge bg-warning">Follow-up Needed</span></td>
+                            <td><button class="btn btn-sm btn-primary-sm"><i class="bi bi-file-earmark"></i> View Records</button></td>
+                        </tr>
+                        <tr>
+                            <td>Robert Johnson</td>
+                            <td><span class="badge badge-cardio">Cardiology</span></td>
+                            <td>2026-02-15</td>
+                            <td><span class="badge bg-success">Healthy</span></td>
+                            <td><button class="btn btn-sm btn-primary-sm"><i class="bi bi-file-earmark"></i> View Records</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- My Patients Section -->
+        <section id="patients-section" class="content-section" style="display:none;">
+            <div class="dashboard-header">
+                <h1><i class="bi bi-people"></i> My Patients</h1>
+                <p>View and manage patient information</p>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search patients..." id="patient-search">
+                        <button class="btn btn-primary-sm" type="button"><i class="bi bi-search"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="data-table">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Patient Name</th>
+                            <th>Age</th>
+                            <th>Condition</th>
+                            <th>Records</th>
+                            <th>Last Updated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><i class="bi bi-person-circle"></i> Alice Brown</td>
+                            <td>45</td>
+                            <td>Hypertension</td>
+                            <td>15 files</td>
+                            <td>Today</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary-sm"><i class="bi bi-eye"></i></button>
+                                <button class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><i class="bi bi-person-circle"></i> Michael Chen</td>
+                            <td>52</td>
+                            <td>Arrhythmia</td>
+                            <td>22 files</td>
+                            <td>Yesterday</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary-sm"><i class="bi bi-eye"></i></button>
+                                <button class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Medical Records Section -->
+        <section id="files-section" class="content-section" style="display:none;">
+            <div class="dashboard-header">
+                <h1><i class="bi bi-file-earmark-medical"></i> Medical Records</h1>
+                <p>View department-classified patient records</p>
+            </div>
+
+            <div id="doctor-files-by-dept">
+                <!-- Populated by JavaScript -->
+            </div>
+        </section>
+
+        <!-- Appointments Section -->
+        <section id="appointments-section" class="content-section" style="display:none;">
+            <div class="dashboard-header">
+                <h1><i class="bi bi-calendar-check"></i> Appointments</h1>
+                <p>Manage scheduled consultations</p>
+            </div>
+
+            <div class="data-table">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Date & Time</th>
+                            <th>Patient</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>2026-02-24 09:00 AM</td>
+                            <td>John Doe</td>
+                            <td>Follow-up</td>
+                            <td><span class="badge bg-success">Confirmed</span></td>
+                            <td><button class="btn btn-sm btn-primary-sm">View</button></td>
+                        </tr>
+                        <tr>
+                            <td>2026-02-24 10:30 AM</td>
+                            <td>Sarah Wilson</td>
+                            <td>Initial Consultation</td>
+                            <td><span class="badge bg-warning">Pending</span></td>
+                            <td><button class="btn btn-sm btn-primary-sm">View</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Profile Section -->
+        <section id="profile-section" class="content-section" style="display:none;">
+            <div class="dashboard-header">
+                <h1><i class="bi bi-person"></i> My Profile</h1>
+                <p>Professional information and settings</p>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="data-table p-4">
+                        <h5 class="mb-4">Personal Information</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Full Name</label>
+                            <input type="text" class="form-control" value="Dr. Sarah Johnson" disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Specialization</label>
+                            <input type="text" class="form-control" value="Cardiology" disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">License Number</label>
+                            <input type="text" class="form-control" value="MD-2024-098765" disabled>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="data-table p-4">
+                        <h5 class="mb-4">Contact Information</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="text" class="form-control" value="sarah.johnson@medicare.com">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Phone</label>
+                            <input type="text" class="form-control" value="+1 (555) 123-4567">
+                        </div>
+                        <button class="btn btn-primary-sm"><i class="bi bi-check"></i> Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../js/fileClassificationAgent.js"></script>
+<script src="../js/doctor-dashboard.js"></script>
+
+</body>
+</html>

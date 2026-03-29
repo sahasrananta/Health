@@ -1,0 +1,29 @@
+{
+  "name": "medicare-hms-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend API for MediCare Hospital Management System",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.1",
+    "multer": "^2.0.2",
+    "uuid": "^11.1.0",
+    "zod": "^4.1.5",
+    "better-sqlite3": "^12.4.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
+
