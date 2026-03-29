@@ -45,7 +45,11 @@ async function sendRealEmail(to, otp) {
     });
     return true;
   } catch (error) {
-    console.error('Failed to send email:', error);
+    console.error('--- NODEMAILER ERROR ---');
+    console.error('Code:', error.code);
+    console.error('Response:', error.response);
+    console.error('Message:', error.message);
+    console.error('------------------------');
     return false;
   }
 }
