@@ -209,7 +209,8 @@ async function sendEmailOtp(containerId) {
         if (res.ok) {
             showToast('Verification code sent to your email! (Check backend console)', 'success');
         } else {
-            showToast('Failed to send OTP', 'error');
+            const data = await res.json().catch(() => ({}));
+            showToast(data.error || 'Failed to send OTP', 'error');
         }
     } catch(e) {
         showToast('Network error sending OTP', 'error');
