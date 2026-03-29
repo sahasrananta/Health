@@ -1,6 +1,7 @@
 import express from 'express';
 import { randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
+import nodemailer from 'nodemailer';
 import { z } from 'zod';
 import { getDb } from '../db.js';
 import { registerSchema, loginSchema } from '../validation.js';
@@ -10,6 +11,43 @@ export const authRoutes = express.Router();
 
 const otpStore = new Map();
 const OTP_EXPIRY_MS = 10 * 60 * 1000;
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: config.emailUser,
+    pass: config.emailPass
+  }
+});
+
+async function sendRealEmail(to, otp) {
+  if (!config.emailUser || !config.emailPass) {
+    console.warn('EMAIL_USER or EMAIL_PASS not set. Falling back to console log.');
+    return false;
+  }
+  
+  try {
+    await transporter.sendMail({
+      from: `"HealthClo Security" <${config.emailUser}>`,
+      to,
+      subject: 'Verify your HealthClo Account',
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+          <h2 style="color: #2563eb;">Welcome to HealthClo!</h2>
+          <p>Please use the verification code below to complete your registration:</p>
+          <div style="font-size: 32px; font-weight: bold; background: #f0f7ff; padding: 20px; text-align: center; border-radius: 8px; color: #1e40af; letter-spacing: 5px;">
+            ${otp}
+          </div>
+          <p style="margin-top: 20px; color: #64748b; font-size: 14px;">This code will expire in 10 minutes. If you didn't request this, you can safely ignore this email.</p>
+        </div>
+      `
+    });
+    return true;
+  } catch (error) {
+    console.error('Failed to send email:', error);
+    return false;
+  }
+}
 
 authRoutes.post('/register', (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
@@ -151,7 +189,7 @@ authRoutes.put('/profile', requireAuth, (req, res) => {
   res.json({ message: 'Profile updated successfully', user: updatedUser });
 });
 
-authRoutes.post('/send-otp', (req, res) => {
+authRoutes.post('/send-otp', async (req, res) => {
   const { email, phone } = req.body;
   const identifier = email || phone;
   if (!identifier) return res.status(400).json({ error: 'Email or phone required' });
@@ -159,9 +197,16 @@ authRoutes.post('/send-otp', (req, res) => {
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   otpStore.set(identifier, { otp, expires: Date.now() + OTP_EXPIRY_MS });
   
+  let sent = false;
+  if (email) {
+    sent = await sendRealEmail(email, otp);
+  }
+
   console.log(`\n============================`);
-  console.log(`[MOCK EMAIL/SMS] To: ${identifier}`);
-  console.log(`Your HealthClo verification code is: ${otp}`);
+  console.log(`[OTP] To: ${identifier}`);
+  console.log(`Code: ${otp}`);
+  if (sent) console.log(`STATUS: Sent via Email successfully.`);
+  else console.log(`STATUS: Local console only (Email settings missing or failed).`);
   console.log(`============================\n`);
   
   res.json({ message: 'OTP sent successfully' });

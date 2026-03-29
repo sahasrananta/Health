@@ -7,6 +7,8 @@ export const config = {
   jwtSecret: process.env.JWT_SECRET || 'dev_only_change_me',
   databasePath: process.env.DATABASE_PATH || './data/app.db',
   uploadDir: process.env.UPLOAD_DIR || './uploads',
-  corsOrigin: process.env.CORS_ORIGIN || '*'
+  corsOrigin: process.env.CORS_ORIGIN || '*',
+  emailUser: process.env.EMAIL_USER,
+  emailPass: process.env.EMAIL_PASS
 };
 
