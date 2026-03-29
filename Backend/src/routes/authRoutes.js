@@ -14,11 +14,16 @@ const otpStore = new Map();
 const OTP_EXPIRY_MS = 10 * 60 * 1000;
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true, // Use SSL
   auth: {
     user: config.emailUser,
     pass: config.emailPass
-  }
+  },
+  connectionTimeout: 10000, // 10 seconds
+  greetingTimeout: 10000,
+  socketTimeout: 20000
 });
 
 async function sendRealEmail(to, otp) {

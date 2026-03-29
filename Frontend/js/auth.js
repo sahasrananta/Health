@@ -197,7 +197,6 @@ async function sendEmailOtp(containerId) {
     const firstInput = otpContainer.querySelector('.otp-digit');
     if (firstInput) firstInput.focus();
 
-    startOtpCountdown(containerId);
     showToast('Sending verification code...', 'info');
 
     try {
@@ -206,8 +205,10 @@ async function sendEmailOtp(containerId) {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ email: emailInput.value })
         });
+        
         if (res.ok) {
-            showToast('Verification code sent to your email! (Check backend console)', 'success');
+            startOtpCountdown(containerId); // Only start timer on SUCCESS
+            showToast('Verification code sent to your email!', 'success');
         } else {
             const data = await res.json().catch(() => ({}));
             showToast(data.error || 'Failed to send OTP', 'error');
