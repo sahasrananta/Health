@@ -177,7 +177,7 @@ function sendOtp(containerId) {
     showToast('OTP sent to your phone number! (Use 123456 for demo)', 'info');
 }
 
-function sendEmailOtp(containerId) {
+async function sendEmailOtp(containerId) {
     const otpContainer = document.getElementById(containerId);
     if (!otpContainer) return;
 
@@ -198,8 +198,22 @@ function sendEmailOtp(containerId) {
     if (firstInput) firstInput.focus();
 
     startOtpCountdown(containerId);
+    showToast('Sending verification code...', 'info');
 
-    showToast('Verification code sent to your email! (Use 123456 for demo)', 'info');
+    try {
+        const res = await fetch('/api/auth/send-otp', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ email: emailInput.value })
+        });
+        if (res.ok) {
+            showToast('Verification code sent to your email! (Check backend console)', 'success');
+        } else {
+            showToast('Failed to send OTP', 'error');
+        }
+    } catch(e) {
+        showToast('Network error sending OTP', 'error');
+    }
 }
 
 function startOtpCountdown(containerId) {
@@ -244,18 +258,31 @@ function getOtpValue(containerId) {
     return Array.from(digits).map(d => d.value).join('');
 }
 
-function verifyOtp(containerId) {
+async function verifyOtp(containerId) {
     const code = getOtpValue(containerId);
     if (code.length !== 6) {
         showToast('Please enter the complete 6-digit OTP', 'error');
         return false;
     }
-    // Demo: accept 123456
-    if (code === '123456') {
-        showToast('OTP verified successfully!', 'success');
-        return true;
-    } else {
-        showToast('Invalid OTP. Please try again. (Hint: 123456)', 'error');
+    const isEmail = containerId.includes('Email');
+    const identifier = isEmail ? document.getElementById('regEmail').value : document.getElementById('regPhone').value;
+
+    try {
+        const res = await fetch('/api/auth/verify-otp', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ [isEmail ? 'email' : 'phone']: identifier, otp: code })
+        });
+        if (res.ok) {
+            showToast('OTP verified successfully!', 'success');
+            return true;
+        } else {
+            const data = await res.json().catch(()=>({}));
+            showToast(data.error || 'Invalid OTP', 'error');
+            return false;
+        }
+    } catch(e) {
+        showToast('Network error verifying OTP', 'error');
         return false;
     }
 }
@@ -518,14 +545,10 @@ async function handleRegister() {
             showToast('Please enter a valid email address', 'error');
             return;
         }
-        // Verify email OTP
+        // Verify email OTP length
         const otp = getOtpValue('regEmailOtpContainer');
         if (otp.length !== 6) {
             showToast('Please verify your email with the 6-digit code', 'error');
-            return;
-        }
-        if (otp !== '123456') {
-            showToast('Invalid verification code. Try 123456 for demo.', 'error');
             return;
         }
     } else {
@@ -537,10 +560,6 @@ async function handleRegister() {
         const otp = getOtpValue('regPhoneOtpContainer');
         if (otp.length !== 6) {
             showToast('Please verify your phone with the OTP', 'error');
-            return;
-        }
-        if (otp !== '123456') {
-            showToast('Invalid OTP. Try 123456 for demo.', 'error');
             return;
         }
     }
@@ -607,7 +626,8 @@ async function handleRegister() {
             lastName,
             dob,
             bloodType: blood,
-            password
+            password,
+            otp: isEmailMode ? getOtpValue('regEmailOtpContainer') : getOtpValue('regPhoneOtpContainer')
         };
 
         if (isEmail) {

@@ -542,15 +542,15 @@
                                     style="color:var(--primary);"></i> Personal Information</h5>
                             <div class="mb-3">
                                 <label class="form-label">Full Name</label>
-                                <input type="text" class="form-control" value="Sahasra">
+                                <input type="text" class="form-control" id="profileFullName" value="">
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Date of Birth</label>
-                                <input type="date" class="form-control" value="1990-05-15">
+                                <input type="date" class="form-control" id="profileDob" value="">
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Blood Type</label>
-                                <select class="form-select">
+                                <select class="form-select" id="profileBlood">
                                     <option selected>O+</option>
                                     <option>A+</option>
                                     <option>B+</option>
@@ -569,17 +569,17 @@
                                     style="color:var(--primary);"></i> Contact Information</h5>
                             <div class="mb-3">
                                 <label class="form-label">Email</label>
-                                <input type="email" class="form-control" value="sahasra@email.com">
+                                <input type="email" class="form-control" id="profileEmail" value="">
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Phone Number</label>
-                                <input type="tel" class="form-control" value="+1 (555) 987-6543">
+                                <input type="tel" class="form-control" id="profilePhone" value="">
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Emergency Contact</label>
                                 <input type="tel" class="form-control" placeholder="+1 (555) 000-0000">
                             </div>
-                            <button class="btn-success-sm">
+                            <button class="btn-success-sm" onclick="saveProfile()" id="saveProfileBtn">
                                 <i class="bi bi-check-lg"></i> Save Changes
                             </button>
                         </div>

@@ -13,7 +13,8 @@ export const registerSchema = z.object({
   bloodType: z.string().optional(),
   specialization: z.string().optional(),
   licenseNumber: z.string().optional(),
-  hospitalAffiliation: z.string().optional()
+  hospitalAffiliation: z.string().optional(),
+  otp: z.string().optional()
 }).refine(v => v.email || v.phone, { message: 'Either email or phone is required' })
   .refine(v => v.role !== 'doctor' || (v.specialization && v.licenseNumber && v.hospitalAffiliation), {
     message: 'Doctor registration requires specialization, licenseNumber, and hospitalAffiliation'

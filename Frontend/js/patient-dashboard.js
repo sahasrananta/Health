@@ -48,6 +48,80 @@ function populateUserName(user) {
 }
 
 // ============================================================
+//  LOAD AND RENDER PROFILE
+// ============================================================
+async function initProfile() {
+    try {
+        const res = await fetch(`${API}/auth/me`, { headers: authHeaders() });
+        if (!res.ok) return;
+        const { user } = await res.json();
+        
+        // Populate inputs if they exist
+        const fnameEl = document.getElementById('profileFullName');
+        if (fnameEl) fnameEl.value = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+        
+        const dobEl = document.getElementById('profileDob');
+        if (dobEl) dobEl.value = user.dob || '';
+
+        const bloodEl = document.getElementById('profileBlood');
+        if (bloodEl && user.blood_type) bloodEl.value = user.blood_type;
+
+        const emailEl = document.getElementById('profileEmail');
+        if (emailEl) emailEl.value = user.email || '';
+
+        const phoneEl = document.getElementById('profilePhone');
+        if (phoneEl) phoneEl.value = user.phone || '';
+        
+        populateUserName(user);
+        // update localstorage
+        localStorage.setItem('currentUser', JSON.stringify(user));
+    } catch (e) {
+        console.warn('Profile load error:', e);
+    }
+}
+
+async function saveProfile() {
+    const btn = document.getElementById('saveProfileBtn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Saving...'; }
+    
+    const fullName = (document.getElementById('profileFullName')?.value || '').trim();
+    const [firstName, ...lastArr] = fullName.split(' ');
+    const lastName = lastArr.join(' ');
+    
+    const payload = {
+        firstName: firstName || '',
+        lastName: lastName || '',
+        dob: document.getElementById('profileDob')?.value || '',
+        bloodType: document.getElementById('profileBlood')?.value || '',
+        email: document.getElementById('profileEmail')?.value || '',
+        phone: document.getElementById('profilePhone')?.value || ''
+    };
+
+    try {
+        const res = await fetch(`${API}/auth/profile`, {
+            method: 'PUT',
+            headers: authHeaders(),
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok) {
+            toast('Profile updated successfully!', 'success');
+            if (data.user) {
+                populateUserName(data.user);
+                localStorage.setItem('currentUser', JSON.stringify(data.user));
+            }
+        } else {
+            toast(data.error || 'Failed to update profile', 'error');
+        }
+    } catch (e) {
+        toast('Network error saving profile', 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg"></i> Save Changes'; }
+    }
+}
+
+// ============================================================
 //  LOAD OVERVIEW STATS FROM API
 // ============================================================
 async function loadStats() {
@@ -564,6 +638,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!user) return;
 
     populateUserName(user);
+    initProfile();
     loadStats();
 
     // Wire upload button

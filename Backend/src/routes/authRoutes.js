@@ -8,6 +8,9 @@ import { requireAuth, signToken } from '../auth.js';
 
 export const authRoutes = express.Router();
 
+const otpStore = new Map();
+const OTP_EXPIRY_MS = 10 * 60 * 1000;
+
 authRoutes.post('/register', (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -16,7 +19,7 @@ authRoutes.post('/register', (req, res) => {
 
   const {
     role, email, phone, password, firstName, lastName, dob, bloodType,
-    specialization, licenseNumber, hospitalAffiliation
+    specialization, licenseNumber, hospitalAffiliation, otp
   } = parsed.data;
 
   const db = getDb();
@@ -29,6 +32,23 @@ authRoutes.post('/register', (req, res) => {
     const exists = db.prepare('SELECT 1 FROM users WHERE phone = ?').get(phone);
     if (exists) return res.status(409).json({ error: 'Phone already registered' });
   }
+
+  // Verify OTP
+  const identifier = email || phone;
+  if (!identifier) return res.status(400).json({ error: 'Email or phone required' });
+  const storedOtp = otpStore.get(identifier);
+  
+  if (!storedOtp) return res.status(400).json({ error: 'OTP validation failed: No OTP requested for this email/phone' });
+  if (Date.now() > storedOtp.expires) {
+    otpStore.delete(identifier);
+    return res.status(400).json({ error: 'OTP expired. Please request a new one.' });
+  }
+  if (storedOtp.otp !== String(otp)) {
+    return res.status(400).json({ error: 'Invalid verification code' });
+  }
+  
+  // Clean up OTP after successful use
+  otpStore.delete(identifier);
 
   const id = randomUUID();
   const passwordHash = bcrypt.hashSync(password, 10);
@@ -100,6 +120,67 @@ authRoutes.post('/login', (req, res) => {
 });
 
 authRoutes.get('/me', requireAuth, (req, res) => {
-  return res.json({ user: req.user });
+  const db = getDb();
+  const user = db.prepare('SELECT id, role, email, phone, first_name, last_name, dob, blood_type, is_verified, created_at FROM users WHERE id = ?').get(req.user.id);
+  return res.json({ user });
+});
+
+authRoutes.put('/profile', requireAuth, (req, res) => {
+  const { firstName, lastName, dob, bloodType, email, phone } = req.body;
+  const db = getDb();
+  
+  if (email && email !== req.user.email) {
+    const exists = db.prepare('SELECT 1 FROM users WHERE email = ?').get(email);
+    if (exists) return res.status(409).json({ error: 'Email already in use' });
+  }
+
+  db.prepare(`
+    UPDATE users 
+    SET first_name = COALESCE(?, first_name),
+        last_name = COALESCE(?, last_name),
+        dob = COALESCE(?, dob),
+        blood_type = COALESCE(?, blood_type),
+        email = COALESCE(?, email),
+        phone = COALESCE(?, phone)
+    WHERE id = ?
+  `).run(
+    firstName || null, lastName || null, dob || null, bloodType || null, email || null, phone || null, req.user.id
+  );
+
+  const updatedUser = db.prepare('SELECT id, role, email, phone, first_name, last_name, dob, blood_type, is_verified, created_at FROM users WHERE id = ?').get(req.user.id);
+  res.json({ message: 'Profile updated successfully', user: updatedUser });
+});
+
+authRoutes.post('/send-otp', (req, res) => {
+  const { email, phone } = req.body;
+  const identifier = email || phone;
+  if (!identifier) return res.status(400).json({ error: 'Email or phone required' });
+  
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  otpStore.set(identifier, { otp, expires: Date.now() + OTP_EXPIRY_MS });
+  
+  console.log(`\n============================`);
+  console.log(`[MOCK EMAIL/SMS] To: ${identifier}`);
+  console.log(`Your HealthClo verification code is: ${otp}`);
+  console.log(`============================\n`);
+  
+  res.json({ message: 'OTP sent successfully' });
+});
+
+authRoutes.post('/verify-otp', (req, res) => {
+  const { email, phone, otp } = req.body;
+  const identifier = email || phone;
+  
+  if (!identifier || !otp) return res.status(400).json({ error: 'Identifier and OTP required' });
+  
+  const record = otpStore.get(identifier);
+  if (!record) return res.status(400).json({ error: 'No OTP requested for this identifier' });
+  if (Date.now() > record.expires) {
+    otpStore.delete(identifier);
+    return res.status(400).json({ error: 'OTP expired' });
+  }
+  if (record.otp !== String(otp)) return res.status(400).json({ error: 'Invalid OTP' });
+  
+  res.json({ message: 'OTP verified successfully' });
 });
 
