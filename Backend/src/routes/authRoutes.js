@@ -199,18 +199,27 @@ authRoutes.post('/send-otp', async (req, res) => {
   otpStore.set(identifier, { otp, expires: Date.now() + OTP_EXPIRY_MS });
   
   let sent = false;
+  let errorMsg = null;
   if (email) {
     sent = await sendRealEmail(email, otp);
+    if (!sent) errorMsg = 'Failed to deliver email. Check server logs.';
   }
 
   console.log(`\n============================`);
-  console.log(`[OTP] To: ${identifier}`);
-  console.log(`Code: ${otp}`);
-  if (sent) console.log(`STATUS: Sent via Email successfully.`);
-  else console.log(`STATUS: Local console only (Email settings missing or failed).`);
+  console.log(`[OTP Request] To: ${identifier}`);
+  console.log(`Generated Code: ${otp}`);
+  if (sent) {
+    console.log(`STATUS: SUCCESS (Real Email Sent)`);
+  } else {
+    console.log(`STATUS: MOCK (Email was NOT sent. Verify EMAIL_USER/PASS)`);
+  }
   console.log(`============================\n`);
   
-  res.json({ message: 'OTP sent successfully' });
+  if (!sent && email) {
+    return res.status(500).json({ error: errorMsg });
+  }
+
+  res.json({ message: 'Verification code sent!' });
 });
 
 authRoutes.post('/verify-otp', (req, res) => {
