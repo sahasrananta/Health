@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
 import { z } from 'zod';
+import { config } from '../config.js';
 import { getDb } from '../db.js';
 import { registerSchema, loginSchema } from '../validation.js';
 import { requireAuth, signToken } from '../auth.js';
