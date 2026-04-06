@@ -1,0 +1,29 @@
+commit f47b49d27cd98b0a1e939a2ceeadc5a5f393f675
+Author: Your Name <your.email@example.com>
+Date:   Tue Apr 7 00:42:25 2026 +0530
+
+    feat: real-time OTP, dynamic trusted doctors, and sample doctor seeding
+
+commit 16af709159f15d088734db1269985187186c228e
+Author: Your Name <your.email@example.com>
+Date:   Sun Mar 29 19:11:45 2026 +0530
+
+    Fix: use Port 587/STARTTLS to avoid ENETUNREACH on Render
+
+commit bbac398b9ff08d62c7bae78c40c18049771e92fd
+Author: Your Name <your.email@example.com>
+Date:   Sun Mar 29 19:06:13 2026 +0530
+
+    Fix: resolve hanging SMTP connection and false success UI
+
+commit 56e971a51a805a05f621b6189b0cc9dc76885f0a
+Author: Your Name <your.email@example.com>
+Date:   Sun Mar 29 18:47:30 2026 +0530
+
+    Fix: show real error message on OTP failure
+
+commit ad7c23915a0942513821cfcdc295e66839f88940
+Author: Your Name <your.email@example.com>
+Date:   Sun Mar 29 18:33:27 2026 +0530
+
+    Fix: log more detail for Nodemailer failures

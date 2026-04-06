@@ -1,0 +1,43 @@
+On branch render-ready-v2
+Changes not staged for commit:
+  (use "git add/rm <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	deleted:    Backend/Dockerfile
+	deleted:    Backend/list_doctors.js
+	deleted:    Backend/seed_doctors.js
+	deleted:    Backend/src/routes/appointmentRoutes.js
+	deleted:    Backend/test_endpoints.js
+	deleted:    COMPLETION_REPORT.md
+	deleted:    DEMO_GUIDE.md
+	deleted:    DOCUMENTATION_INDEX.md
+	deleted:    EMAIL_VERIFICATION_GUIDE.md
+	deleted:    Frontend/js/ui-manager.js
+	deleted:    HANDS_ON_TESTING_GUIDE.md
+	deleted:    LOGIN_TESTING_COMPLETE.md
+	deleted:    OTP_IMPLEMENTATION_GUIDE.md
+	deleted:    OTP_SYSTEM_COMPLETE.md
+	deleted:    PHONE_OTP_GUIDE.md
+	deleted:    PHONE_OTP_TESTING.md
+	deleted:    PROJECT_SUMMARY.md
+	deleted:    QUICKSTART_OTP.md
+	deleted:    TESTING_READY.md
+	deleted:    TESTING_REPORT.md
+	deleted:    TWILIO_SETUP.md
+	deleted:    VERIFICATION_CHECKLIST.md
+	deleted:    data/app.db
+	deleted:    data/app.db-shm
+	deleted:    data/app.db-wal
+	deleted:    tmpclaude-4fce-cwd
+	deleted:    tmpclaude-565a-cwd
+	deleted:    tmpclaude-8e94-cwd
+	deleted:    tmpclaude-d90a-cwd
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	Backend/temp_doctors.txt
+	git-log.txt
+	push-error-cmd.txt
+	push-error.txt
+	status2.txt
+
+no changes added to commit (use "git add" and/or "git commit -a")
