@@ -1,7 +1,7 @@
 import express from 'express';
 import { randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import twilio from 'twilio';
 import { z } from 'zod';
 import { config } from '../config.js';
@@ -17,18 +17,14 @@ const otpAttempts = new Map(); // Track resend attempts
 const OTP_RESEND_COOLDOWN_MS = 30 * 1000; // 30 seconds between resends
 const MAX_RESEND_ATTEMPTS = 5; // Max resends per session
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false, // Use STARTTLS (port 587)
-  auth: {
-    user: config.emailUser,
-    pass: config.emailPass
-  },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 20000
-});
+// Email Configuration
+let resend = null;
+if (config.resendApiKey) {
+  resend = new Resend(config.resendApiKey);
+  console.log('✅ Resend Email API configured');
+} else {
+  console.log('ℹ️ Resend not configured. Real emails will fail. (Render blocks SMTP)');
+}
 
 // Twilio SMS Configuration
 let twilioClient = null;
@@ -44,15 +40,15 @@ if (config.twilioAccountSid && config.twilioAuthToken && config.twilioAccountSid
 }
 
 async function sendRealEmail(to, otp) {
-  if (!config.emailUser || !config.emailPass) {
-    console.warn('EMAIL_USER or EMAIL_PASS not set. Falling back to console log.');
+  if (!resend) {
+    console.warn('RESEND_API_KEY not set. Cannot send HTTP email.');
     return false;
   }
   
   try {
-    await transporter.sendMail({
-      from: `"HealthClo Security" <${config.emailUser}>`,
-      to,
+    const { data, error } = await resend.emails.send({
+      from: `HealthClo Security <onboarding@resend.dev>`,
+      to: [to],
       subject: 'Verify your HealthClo Account',
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
@@ -65,13 +61,17 @@ async function sendRealEmail(to, otp) {
         </div>
       `
     });
+    
+    if (error) {
+      console.error('--- RESEND ERROR ---');
+      console.error(error);
+      return false;
+    }
+    
     return true;
   } catch (error) {
-    console.error('--- NODEMAILER ERROR ---');
-    console.error('Code:', error.code);
-    console.error('Response:', error.response);
-    console.error('Message:', error.message);
-    console.error('------------------------');
+    console.error('--- RESEND THROW CATCH ---');
+    console.error(error.message);
     return false;
   }
 }
@@ -348,7 +348,7 @@ authRoutes.post('/send-otp', async (req, res) => {
   
   // Disable Trial Mode hints if real credentials (Twilio or Email) are configured
   const isRealSmsActive = !!twilioClient;
-  const isRealEmailActive = !!transporter && config.emailUser && config.emailPass;
+  const isRealEmailActive = !!resend;
 
   if (config.nodeEnv === 'development' && !isRealSmsActive && !isRealEmailActive) {
     response.otp = otp;
