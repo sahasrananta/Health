@@ -1,343 +1,206 @@
 /**
- * Admin Dashboard JavaScript
- * Handles file classification, department management, and analytics
+ * Admin Dashboard - HealthClo
+ * Manages system overview, user verification, and doctor management.
  */
 
-// Initialize sample data
-function initializeSampleData() {
-    const sampleFiles = [
-        { name: 'patient_heartbeat_ECG.pdf', content: 'ECG report showing normal cardiac rhythm', metadata: { type: 'ECG', date: '2026-02-20' } },
-        { name: 'MRI_brain_scan.pdf', content: 'Brain MRI examination report neurological findings', metadata: { type: 'MRI', date: '2026-02-21' } },
-        { name: 'xray_fracture_bone.pdf', content: 'X-ray report showing fracture orthopedic assessment', metadata: { type: 'XRay', date: '2026-02-19' } },
-        { name: 'blood_pressure_general.pdf', content: 'General physical examination and blood pressure check', metadata: { type: 'Physical', date: '2026-02-21' } },
-        { name: 'cardiac_ultrasound_echo.pdf', content: 'Echocardiogram cardiac function heart health', metadata: { type: 'Ultrasound', date: '2026-02-18' } },
-        { name: 'psychological_assessment.pdf', content: 'Mental health evaluation psychiatric consultation', metadata: { type: 'Assessment', date: '2026-02-20' } },
-    ];
+const API = '/api';
 
-    // Classify all files
-    const classified = fileAgent.classifyMultipleFiles(sampleFiles);
-    
-    // Store in localStorage for persistence
-    localStorage.setItem('classifiedFiles', JSON.stringify(fileAgent.departments));
+function getToken() {
+    return localStorage.getItem('authToken') || '';
 }
 
-// Load classified files from localStorage
-function loadClassifiedFiles() {
-    const stored = localStorage.getItem('classifiedFiles');
-    if (stored) {
-        const data = JSON.parse(stored);
-        fileAgent.importClassification(data);
-    } else {
-        initializeSampleData();
+function authHeaders() {
+    return {
+        'Authorization': 'Bearer ' + getToken(),
+        'Content-Type': 'application/json'
+    };
+}
+
+// ============================================================
+//  AUTH GUARD
+// ============================================================
+function checkAuth() {
+    const token = getToken();
+    const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    if (!token || !user || user.role !== 'admin') {
+        window.location.href = '../login.html';
+        return null;
+    }
+    return user;
+}
+
+// ============================================================
+//  OVERVIEW & STATS
+// ============================================================
+async function loadOverview() {
+    try {
+        const res = await fetch(`${API}/admin/overview`, { headers: authHeaders() });
+        if (!res.ok) return;
+        const { overview } = await res.json();
+
+        // Update basic stats
+        const totalFiles = document.getElementById('total-files');
+        if (totalFiles) totalFiles.textContent = overview.totalRecords || 0;
+
+        const activeUsers = document.getElementById('active-users');
+        if (activeUsers) activeUsers.textContent = overview.totalUsers || 0;
+
+        // Pending doctors counts (will be updated specifically)
+        await loadPendingDoctorsCount(overview);
+    } catch (e) {
+        console.warn('Overview stats error:', e);
     }
 }
 
-// Render department table
-function renderDepartmentTable() {
-    const tbody = document.getElementById('dept-table-body');
+async function loadPendingDoctorsCount(overview) {
+    try {
+        const res = await fetch(`${API}/admin/doctors/pending`, { headers: authHeaders() });
+        if (res.ok) {
+            const { pending } = await res.json();
+            const el = document.getElementById('pending-reviews');
+            if (el) el.textContent = pending.length;
+        }
+    } catch (e) {
+        console.warn('Pending count load error:', e);
+    }
+}
+
+// ============================================================
+//  LOAD DOCTORS & USERS
+// ============================================================
+async function loadAllUsers() {
+    const tbody = document.getElementById('users-table-body');
     if (!tbody) return;
 
-    tbody.innerHTML = '';
-    
-    fileAgent.getAllDepartments().forEach(dept => {
-        const stats = fileAgent.getDepartmentStats(dept);
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>
-                <i class="bi ${stats.icon}" style="color: ${stats.color};"></i> ${dept}
-            </td>
-            <td><strong>${stats.fileCount}</strong></td>
-            <td>3-5</td>
-            <td>Updated today</td>
-            <td><span class="badge bg-success">Active</span></td>
-            <td>
-                <button class="btn btn-sm btn-primary-sm me-2" onclick="viewDepartment('${dept}')">
-                    <i class="bi bi-eye"></i>
-                </button>
-                <button class="btn btn-sm btn-danger">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </td>
-        `;
-        tbody.appendChild(row);
-    });
+    try {
+        const res = await fetch(`${API}/admin/users`, { headers: authHeaders() });
+        if (!res.ok) return;
+        const { users } = await res.json();
 
-    // Update total files count
-    const totalFiles = document.getElementById('total-files');
-    if (totalFiles) {
-        const count = Object.values(fileAgent.departments).reduce((sum, d) => sum + d.files.length, 0);
-        totalFiles.textContent = count;
+        if (users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">No users found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = users.map(u => {
+            const statusClass = u.is_verified ? 'bg-success' : 'bg-warning text-dark';
+            const statusLabel = u.is_verified ? 'Verified' : 'Pending';
+            const roleClass = { patient: 'bg-info text-dark', doctor: 'bg-primary' }[u.role] || 'bg-secondary';
+            
+            let actions = `<button class="btn btn-sm btn-outline-danger" title="Delete User"><i class="bi bi-trash"></i></button>`;
+            if (u.role === 'doctor' && !u.is_verified) {
+                actions = `<button class="btn btn-sm btn-success me-2" onclick="verifyDoctor('${u.id}')" title="Verify Doctor"><i class="bi bi-check-circle"></i> Verify</button>` + actions;
+            }
+
+            return `
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-person-circle fs-5 me-2" style="color:var(--primary);"></i>
+                            <div><strong>${u.first_name} ${u.last_name}</strong><br><small class="text-muted">${u.email || u.phone}</small></div>
+                        </div>
+                    </td>
+                    <td><span class="badge ${roleClass}">${u.role.toUpperCase()}</span></td>
+                    <td>—</td>
+                    <td><span class="badge ${statusClass}">${statusLabel}</span></td>
+                    <td>${new Date(u.created_at).toLocaleDateString()}</td>
+                    <td>${actions}</td>
+                </tr>
+            `;
+        }).join('');
+    } catch (e) {
+        console.error('User load error:', e);
     }
 }
 
-// Render departments section
-function renderDepartments() {
-    const container = document.getElementById('departments-container');
-    if (!container) return;
-
-    container.innerHTML = '';
+// ============================================================
+//  DOCTOR VERIFICATION logic
+// ============================================================
+async function verifyDoctor(id) {
+    if (!confirm('Verify this doctor credentials and grant access?')) return;
     
-    fileAgent.getAllDepartments().forEach(dept => {
-        const deptData = fileAgent.departments[dept];
-        const deptInfo = fileAgent.getDepartmentInfo(dept);
-        
-        const deptHTML = `
-            <div class="dept-container">
-                <div class="dept-section">
-                    <div class="dept-header">
-                        <div class="dept-header-icon">
-                            <i class="bi ${deptInfo.icon}"></i>
-                        </div>
-                        <div>
-                            <h3>${dept}</h3>
-                            <small>${deptData.files.length} files | Last updated: Today</small>
-                        </div>
-                    </div>
-                    <div class="dept-content">
-                        ${deptData.files.length > 0 ?
-                            `<div class="file-list">
-                                ${deptData.files.slice(0, 3).map(file => `
-                                    <div class="file-item">
-                                        <div class="file-icon">
-                                            <i class="bi bi-file-earmark-pdf"></i>
-                                        </div>
-                                        <div class="file-info">
-                                            <span class="file-name">${file.name}</span>
-                                            <span class="file-meta">Classified: ${new Date(file.classifiedAt).toLocaleDateString()}</span>
-                                        </div>
-                                        <div class="file-actions">
-                                            <button class="btn btn-sm btn-primary-sm"><i class="bi bi-download"></i></button>
-                                            <button class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button>
-                                        </div>
-                                    </div>
-                                `).join('')}
-                            </div>`
-                            : `<div class="no-files-message">
-                                <i class="bi bi-inbox"></i>
-                                <p>No files in this department yet</p>
-                            </div>`
-                        }
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        container.innerHTML += deptHTML;
-    });
+    try {
+        const res = await fetch(`${API}/admin/doctors/${id}/verify`, {
+            method: 'POST',
+            headers: authHeaders()
+        });
+        if (res.ok) {
+            if (typeof showToast === 'function') showToast('Doctor verified successfully!', 'success');
+            else alert('Doctor verified successfully!');
+            loadAllUsers();
+            loadOverview();
+        } else {
+            const data = await res.json().catch(()=>({}));
+            alert(data.error || 'Verification failed');
+        }
+    } catch (e) {
+        alert('Network error verifying doctor');
+    }
 }
 
-// Render files by department
-function renderFilesByDepartment() {
-    const container = document.getElementById('files-by-dept');
-    if (!container) return;
-
-    container.innerHTML = '';
-    
-    fileAgent.getAllDepartments().forEach(dept => {
-        const deptData = fileAgent.departments[dept];
-        const deptInfo = fileAgent.getDepartmentInfo(dept);
-        
-        const html = `
-            <div class="dept-container">
-                <div class="dept-section">
-                    <div class="dept-header">
-                        <div class="dept-header-icon">
-                            <i class="bi ${deptInfo.icon}"></i>
-                        </div>
-                        <div>
-                            <h3>${dept}</h3>
-                            <small>${deptData.files.length} files classified</small>
-                        </div>
-                    </div>
-                    <div class="dept-content">
-                        ${deptData.files.length > 0 ?
-                            `<div class="file-list">
-                                ${deptData.files.map(file => `
-                                    <div class="file-item">
-                                        <div class="file-icon">
-                                            <i class="bi bi-file-earmark-pdf"></i>
-                                        </div>
-                                        <div class="file-info">
-                                            <span class="file-name">${file.name}</span>
-                                            <span class="file-meta">Classified: ${new Date(file.classifiedAt).toLocaleDateString()}</span>
-                                        </div>
-                                        <div class="file-actions">
-                                            <button class="btn btn-sm btn-primary-sm" onclick="viewFile('${file.name}')"><i class="bi bi-eye"></i></button>
-                                            <button class="btn btn-sm btn-warning" onclick="moveFile('${file.name}')"><i class="bi bi-arrow-left-right"></i></button>
-                                            <button class="btn btn-sm btn-danger" onclick="deleteFile('${file.name}')"><i class="bi bi-trash"></i></button>
-                                        </div>
-                                    </div>
-                                `).join('')}
-                            </div>`
-                            : `<div class="no-files-message">
-                                <i class="bi bi-inbox"></i>
-                                <p>No files in this department yet</p>
-                            </div>`
-                        }
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        container.innerHTML += html;
-    });
-}
-
-// Handle section navigation
+// ============================================================
+//  SIDEBAR NAVIGATION
+// ============================================================
 function setupNavigation() {
     const navLinks = document.querySelectorAll('.sidebar-nav .nav-link');
-    
     navLinks.forEach(link => {
         link.addEventListener('click', function() {
             const section = this.dataset.section;
-            
-            // Remove active class from all links
             navLinks.forEach(l => l.classList.remove('active'));
-            
-            // Add active class to clicked link
             this.classList.add('active');
             
-            // Hide all sections
-            document.querySelectorAll('.content-section').forEach(s => {
-                s.style.display = 'none';
-            });
+            document.querySelectorAll('.content-section').forEach(s => s.style.display = 'none');
+            const selected = document.getElementById(`${section}-section`);
+            if (selected) selected.style.display = 'block';
             
-            // Show selected section
-            const selectedSection = document.getElementById(`${section}-section`);
-            if (selectedSection) {
-                selectedSection.style.display = 'block';
-                
-                // Re-render content for each section
-                if (section === 'overview') {
-                    renderDepartmentTable();
-                } else if (section === 'departments') {
-                    renderDepartments();
-                } else if (section === 'files') {
-                    renderFilesByDepartment();
-                }
-            }
+            if (section === 'users') loadAllUsers();
+            if (section === 'audit') loadAuditLogs();
         });
     });
 }
 
-// Upload files function
-function uploadFiles() {
-    const fileInput = document.getElementById('fileInput');
-    const deptSelect = document.getElementById('deptSelect');
-    
-    if (fileInput.files.length === 0) {
-        alert('Please select files to upload');
-        return;
-    }
+// ============================================================
+//  AUDIT LOGS
+// ============================================================
+async function loadAuditLogs() {
+    const tbody = document.getElementById('audit-table-body');
+    if (!tbody) return;
 
-    const newFiles = Array.from(fileInput.files).map(file => ({
-        name: file.name,
-        content: `File content of ${file.name}`,
-        metadata: { size: file.size, type: file.type }
-    }));
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Loading logs...</td></tr>';
 
-    if (deptSelect.value) {
-        // Manual override
-        newFiles.forEach(file => {
-            fileAgent.departments[deptSelect.value].files.push({
-                ...file,
-                classified: true,
-                classifiedAt: new Date().toISOString(),
-                manual: true
-            });
-        });
-    } else {
-        // Auto-classify
-        const classified = fileAgent.classifyMultipleFiles(newFiles);
-    }
+    try {
+        const res = await fetch(`${API}/admin/audit-logs`, { headers: authHeaders() });
+        if (!res.ok) return;
+        const { logs } = await res.json();
 
-    // Save to localStorage
-    localStorage.setItem('classifiedFiles', JSON.stringify(fileAgent.departments));
+        if (logs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No audit logs found</td></tr>';
+            return;
+        }
 
-    // Close modal and refresh
-    const modal = bootstrap.Modal.getInstance(document.getElementById('uploadModal'));
-    modal.hide();
-
-    // Reset form
-    fileInput.value = '';
-    deptSelect.value = '';
-
-    // Refresh current view
-    renderFilesByDepartment();
-    renderDepartmentTable();
-
-    alert('Files uploaded and classified successfully!');
-}
-
-// View file details
-function viewFile(fileName) {
-    alert(`Viewing file: ${fileName}`);
-}
-
-// Move file to different department
-function moveFile(fileName) {
-    const depts = fileAgent.getAllDepartments();
-    const deptList = depts.join('\n');
-    const targetDept = prompt(`Move file to department:\n\n${deptList}`, '');
-    
-    if (targetDept && fileAgent.moveFile(fileName, targetDept)) {
-        localStorage.setItem('classifiedFiles', JSON.stringify(fileAgent.departments));
-        renderFilesByDepartment();
-        alert(`File moved to ${targetDept} successfully!`);
+        tbody.innerHTML = logs.map(l => {
+            const time = new Date(l.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+            return `
+                <tr>
+                    <td><small class="text-muted">${time}</small></td>
+                    <td><strong>${l.actor_name || 'System'}</strong><br><small class="text-muted">${l.actor_id}</small></td>
+                    <td><span class="badge bg-secondary-subtle text-dark border">${l.action}</span></td>
+                    <td><small>${l.target_id || '—'}</small></td>
+                    <td><span class="badge bg-success-subtle text-success">SUCCESS</span></td>
+                </tr>
+            `;
+        }).join('');
+    } catch (e) {
+        console.error('Audit load error:', e);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">Failed to load logs</td></tr>';
     }
 }
 
-// Delete file
-function deleteFile(fileName) {
-    if (confirm(`Delete ${fileName} permanently?`)) {
-        fileAgent.removeFile(fileName);
-        localStorage.setItem('classifiedFiles', JSON.stringify(fileAgent.departments));
-        renderFilesByDepartment();
-        renderDepartmentTable();
-        alert('File deleted successfully!');
-    }
-}
-
-// View department details
-function viewDepartment(dept) {
-    // Navigate to departments section and highlight the department
-    document.querySelector('[data-section="departments"]').click();
-}
-
-// Search files
-function setupSearch() {
-    const searchInput = document.getElementById('file-search');
-    if (!searchInput) return;
-
-    searchInput.addEventListener('input', function(e) {
-        const query = e.target.value.toLowerCase();
-        const items = document.querySelectorAll('.file-item');
-        
-        items.forEach(item => {
-            const fileName = item.querySelector('.file-name').textContent.toLowerCase();
-            if (fileName.includes(query)) {
-                item.style.display = 'flex';
-            } else {
-                item.style.display = 'none';
-            }
-        });
-    });
-}
-
-// Initialize dashboard
-document.addEventListener('DOMContentLoaded', function() {
-    loadClassifiedFiles();
+// ============================================================
+//  INITIALIZE
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+    if (!checkAuth()) return;
+    loadOverview();
     setupNavigation();
-    renderDepartmentTable();
-    setupSearch();
-    
-    // Add click handler for upload modal
-    const uploadBtn = document.querySelector('[data-bs-target="#uploadModal"]');
-    if (uploadBtn) {
-        uploadBtn.addEventListener('click', function() {
-            // Reset form when opening modal
-            document.getElementById('fileInput').value = '';
-            document.getElementById('deptSelect').value = '';
-        });
-    }
 });

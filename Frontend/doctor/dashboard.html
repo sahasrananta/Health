@@ -11,7 +11,12 @@
 <!-- Navigation Bar -->
 <nav class="navbar navbar-dark dashboard-navbar sticky-top">
     <div class="container-fluid px-5">
-        <a class="navbar-brand fw-bold" href="../index.html"><i class="bi bi-hospital"></i> MediCare</a>
+        <div class="d-flex align-items-center">
+            <button class="btn text-white d-lg-none me-3 p-0" id="sidebarToggle" style="font-size: 1.5rem;">
+                <i class="bi bi-list"></i>
+            </button>
+            <a class="navbar-brand fw-bold" href="../index.html"><i class="bi bi-hospital"></i> HealthClo</a>
+        </div>
         <div class="d-flex align-items-center gap-3">
             <span class="text-white"><i class="bi bi-person-circle"></i> Dr. Sarah Johnson</span>
             <a href="../login.html" class="btn btn-light btn-sm">Logout</a>
@@ -21,6 +26,7 @@
 
 <!-- Main Container -->
 <div class="dashboard-wrapper">
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <!-- Sidebar Navigation -->
     <nav class="sidebar-nav">
         <div class="nav-link active" data-section="overview"><i class="bi bi-speedometer2"></i> Overview</div>
@@ -253,6 +259,8 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/ui-manager.js"></script>
 <script src="../js/fileClassificationAgent.js"></script>
 <script src="../js/doctor-dashboard.js"></script>
 

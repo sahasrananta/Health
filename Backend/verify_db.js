@@ -1,4 +1,7 @@
-import Database from 'better-sqlite3';
-const db = new Database('./data/app.db');
-const user = db.prepare('SELECT id, email, first_name, last_name, role FROM users WHERE email=?').get('test@patient.com');
-console.log(JSON.stringify(user, null, 2));
+import { getDb } from './src/db.js';
+
+const db = getDb();
+console.log('--- Database Verification (with hashes) ---');
+
+const users = db.prepare("SELECT id, role, email, password_hash, is_verified FROM users").all();
+console.log('Users:', JSON.stringify(users, null, 2));

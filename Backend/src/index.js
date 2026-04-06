@@ -14,6 +14,8 @@ import { departmentRoutes } from './routes/departmentRoutes.js';
 import { consentRoutes } from './routes/consentRoutes.js';
 import { doctorRoutes } from './routes/doctorRoutes.js';
 import { adminRoutes } from './routes/adminRoutes.js';
+import { appointmentRoutes } from './routes/appointmentRoutes.js';
+
 
 function ensureDir(dir) {
   fs.mkdirSync(path.resolve(dir), { recursive: true });
@@ -39,11 +41,13 @@ app.use(helmet({
       styleSrc: [
         "'self'",
         "'unsafe-inline'",
-        "https://cdn.jsdelivr.net"
+        "https://cdn.jsdelivr.net",
+        "https://fonts.googleapis.com"
       ],
       fontSrc: [
         "'self'",
         "https://cdn.jsdelivr.net",
+        "https://fonts.gstatic.com",
         "data:"
       ],
       imgSrc: ["'self'", "data:", "blob:"],
@@ -73,6 +77,8 @@ app.use('/api/records', recordRoutes);
 app.use('/api/consents', consentRoutes);
 app.use('/api/doctor', doctorRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/appointments', appointmentRoutes);
+
 
 app.use((req, res, next) => {
   if (req.path.startsWith('/api')) {

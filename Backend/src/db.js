@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
+import bcrypt from 'bcryptjs';
+import { randomUUID } from 'node:crypto';
 import { config } from './config.js';
 
 let dbInstance = null;
@@ -91,6 +93,18 @@ function migrate(db) {
 
     CREATE INDEX IF NOT EXISTS idx_audit_patient ON audit_logs(patient_id);
   `);
+
+  // Seed default admin if no admin exists
+  const adminExists = db.prepare("SELECT 1 FROM users WHERE role = 'admin'").get();
+  if (!adminExists) {
+    const passwordHash = bcrypt.hashSync('Admin123!', 10);
+    const now = new Date().toISOString();
+    db.prepare(`
+      INSERT INTO users (id, role, email, phone, password_hash, first_name, last_name, is_verified, created_at)
+      VALUES (?, 'admin', 'admin@healthclo.com', NULL, ?, 'System', 'Admin', 1, ?)
+    `).run(randomUUID(), passwordHash, now);
+    console.log('✅ Default admin seeded: admin@healthclo.com / Admin123!');
+  }
 }
 
 export function getDb() {

@@ -26,3 +26,12 @@ export const loginSchema = z.object({
   password: z.string().min(1).max(128)
 }).refine(v => v.email || v.phone, { message: 'Either email or phone is required' });
 
+export const appointmentSchema = z.object({
+  doctorId: z.string().uuid(),
+  startsAt: z.string().datetime(),
+  reason: z.string().max(250).optional()
+});
+
+export const appointmentStatusSchema = z.object({
+  status: z.enum(['scheduled', 'completed', 'cancelled'])
+});

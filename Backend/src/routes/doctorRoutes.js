@@ -54,3 +54,25 @@ doctorRoutes.get('/patients', requireAuth, requireRole('doctor'), (req, res) => 
   res.json({ patients });
 });
 
+// Patients: Search for Doctors (to grant consent)
+doctorRoutes.get('/search', requireAuth, (req, res) => {
+  const { q } = req.query;
+  const db = getDb();
+  
+  if (!q || q.length < 2) {
+    return res.json({ doctors: [] });
+  }
+
+  const query = `%${q}%`;
+  const doctors = db.prepare(`
+    SELECT id, first_name, last_name, specialization, hospital_affiliation
+    FROM users
+    WHERE role = 'doctor' 
+      AND is_verified = 1
+      AND (first_name LIKE ? OR last_name LIKE ? OR specialization LIKE ?)
+    LIMIT 20
+  `).all(query, query, query);
+
+  res.json({ doctors });
+});
+

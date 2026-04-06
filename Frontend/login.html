@@ -151,7 +151,7 @@
                                 <div class="input-group">
                                     <span class="input-group-text"
                                         style="background:var(--primary-light);border-color:var(--border);padding:0;">
-                                        <select class="form-select border-0"
+                                        <select class="form-select border-0" id="loginCountryCode"
                                             style="background:transparent;width:80px;font-size:.85rem;padding:8px;">
                                             <option value="+91">🇮🇳 +91</option>
                                             <option value="+1">🇺🇸 +1</option>
@@ -163,6 +163,9 @@
                                     <input type="tel" class="form-control phone-input" id="loginPhone"
                                         placeholder="Enter 10-digit number" maxlength="10">
                                 </div>
+                                <small class="text-muted" style="font-size:.78rem;">
+                                    <i class="bi bi-info-circle"></i> An OTP will be sent to your phone number. No password needed.
+                                </small>
                             </div>
 
                             <button type="button" class="btn btn-outline-primary w-100 mb-3"
@@ -197,7 +200,9 @@
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <span class="otp-timer" style="font-size:.82rem;color:var(--text-muted);"></span>
                                     <button type="button" class="otp-resend-btn" style="display:none;"
-                                        onclick="sendOtp('loginOtpContainer')">Resend OTP</button>
+                                        onclick="resendOtpHandler('loginOtpContainer')">
+                                        <i class="bi bi-arrow-counterclockwise" style="margin-right: 4px;"></i>Resend OTP
+                                    </button>
                                 </div>
                             </div>
                         </div>

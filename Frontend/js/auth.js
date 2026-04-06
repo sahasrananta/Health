@@ -144,11 +144,12 @@ function updatePasswordStrength() {
 
 
 // ============================================================
-//  OTP SYSTEM (Simulation)
+//  OTP SYSTEM — WITH REAL-TIME COUNTDOWN & VISUAL FEEDBACK
 // ============================================================
-let otpTimerInterval = null;
+let otpTimerIntervals = new Map(); // Track multiple timers
+const lastOtpSentForPhone = new Map(); // Track last phone number OTP was sent for
 
-function sendOtp(containerId) {
+async function sendOtp(containerId) {
     const otpContainer = document.getElementById(containerId);
     if (!otpContainer) return;
 
@@ -157,24 +158,66 @@ function sendOtp(containerId) {
         otpContainer.closest('.auth-card').querySelector('.phone-input') :
         document.querySelector('.phone-input');
 
-    if (phoneInput && !validatePhone(phoneInput.value)) {
+    const countryCodeSelect = otpContainer.closest('.auth-card') ?
+        otpContainer.closest('.auth-card').querySelector('select') :
+        document.querySelector('select'); // Fallback to the first select in the input group
+
+    const rawPhone = phoneInput ? phoneInput.value.trim() : '';
+    const countryCode = countryCodeSelect ? countryCodeSelect.value : '+91';
+
+    if (!validatePhone(rawPhone)) {
         showToast('Please enter a valid phone number', 'error');
-        phoneInput.focus();
+        if (phoneInput) phoneInput.focus();
         return;
     }
 
-    // Show OTP fields
-    otpContainer.style.display = 'block';
-    otpContainer.classList.add('animate-in');
+    const phone = `${countryCode}${rawPhone}`;
 
-    // Focus first OTP input
-    const firstInput = otpContainer.querySelector('.otp-digit');
-    if (firstInput) firstInput.focus();
+    showToast('Sending OTP to your phone...', 'info');
+    
+    // Determine type based on context
+    const isRegister = containerId.toLowerCase().includes('reg') || window.location.pathname.includes('register');
+    const type = isRegister ? 'register' : 'login';
+    
+    try {
+        const res = await fetch('/api/auth/send-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone, type })
+        });
+        const data = await res.json().catch(() => ({}));
 
-    // Start countdown
-    startOtpCountdown(containerId);
+        if (res.ok) {
+            // Show OTP fields
+            otpContainer.style.display = 'block';
+            otpContainer.classList.add('animate-in');
+            
+            // Clear previous OTP values
+            otpContainer.querySelectorAll('.otp-digit').forEach(input => {
+                input.value = '';
+                input.disabled = false;
+            });
+            
+            // Notification of success
+            showToast('Verification code sent!', 'success');
+            
+            // Handle Mock/Trial Mode Hints (Console Only)
+            if (data.otp && data.isTrial) {
+                console.log('%c [Trial Mode] Generated OTP: ' + data.otp, 'background: #222; color: #bada55; font-size: 1.2rem; padding: 5px;');
+                showToast(`Trial Mode: Code is ${data.otp}`, 'warning');
+            }
 
-    showToast('OTP sent to your phone number! (Use 123456 for demo)', 'info');
+            const firstInput = otpContainer.querySelector('.otp-digit');
+            if (firstInput && (!data.isTrial)) firstInput.focus();
+            
+            startOtpCountdown(containerId);
+            showToast('OTP sent! Check your phone.', 'success');
+        } else {
+            showToast(data.error || 'Failed to send OTP', 'error');
+        }
+    } catch (e) {
+        showToast('Network error sending OTP', 'error');
+    }
 }
 
 async function sendEmailOtp(containerId) {
@@ -194,23 +237,45 @@ async function sendEmailOtp(containerId) {
     otpContainer.style.display = 'block';
     otpContainer.classList.add('animate-in');
 
+    // Clear previous OTP values
+    otpContainer.querySelectorAll('.otp-digit').forEach(input => {
+        input.value = '';
+        input.disabled = false;
+    });
+
     const firstInput = otpContainer.querySelector('.otp-digit');
     if (firstInput) firstInput.focus();
 
     showToast('Sending verification code...', 'info');
 
+    const isRegister = containerId.toLowerCase().includes('reg') || window.location.pathname.includes('register');
+    const type = isRegister ? 'register' : 'login';
+
     try {
         const res = await fetch('/api/auth/send-otp', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ email: emailInput.value })
+            body: JSON.stringify({ email: emailInput.value, type })
         });
         
+        const data = await res.json().catch(() => ({}));
+
         if (res.ok) {
             startOtpCountdown(containerId); // Only start timer on SUCCESS
             showToast('Verification code sent to your email!', 'success');
+            
+            // Handle Trial Mode (Development)
+            if (data.otp && data.isTrial) {
+                console.log('%c [Trial Mode] Generated OTP: ' + data.otp, 'background: #222; color: #bada55; font-size: 1.2rem; padding: 5px;');
+                showToast(`Trial Mode: Code is ${data.otp}`, 'warning');
+                
+                const digits = data.otp.split('');
+                const inputs = otpContainer.querySelectorAll('.otp-digit');
+                digits.forEach((digit, i) => {
+                    if (inputs[i]) inputs[i].value = digit;
+                });
+            }
         } else {
-            const data = await res.json().catch(() => ({}));
             showToast(data.error || 'Failed to send OTP', 'error');
         }
     } catch(e) {
@@ -225,19 +290,91 @@ function startOtpCountdown(containerId) {
 
     if (!timerEl) return;
 
-    let seconds = 60;
-    if (resendBtn) resendBtn.style.display = 'none';
+    // Clear any existing timer for this container
+    if (otpTimerIntervals.has(containerId)) {
+        clearInterval(otpTimerIntervals.get(containerId));
+    }
 
-    clearInterval(otpTimerInterval);
-    otpTimerInterval = setInterval(() => {
+    let seconds = 60;
+    const totalSeconds = 60;
+    const startTime = Date.now();
+
+    if (resendBtn) {
+        resendBtn.style.display = 'none';
+        resendBtn.disabled = false;
+    }
+
+    // Create progress bar if it doesn't exist
+    let progressBar = timerEl.parentElement?.querySelector('.otp-progress');
+    if (!progressBar) {
+        progressBar = document.createElement('div');
+        progressBar.className = 'otp-progress';
+        progressBar.style.cssText = `
+            width: 100%;
+            height: 4px;
+            background: #e5e7eb;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 6px;
+        `;
+        const progressFill = document.createElement('div');
+        progressFill.className = 'otp-progress-fill';
+        progressFill.style.cssText = `
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #3b82f6);
+            width: 100%;
+            transition: width 0.3s ease;
+        `;
+        progressBar.appendChild(progressFill);
+        timerEl.parentElement?.appendChild(progressBar);
+    }
+
+    const interval = setInterval(() => {
         seconds--;
-        timerEl.textContent = `Resend in ${seconds}s`;
+        const progress = (seconds / totalSeconds) * 100;
+        
+        // Update timer text with styling
+        timerEl.innerHTML = `
+            <span style="color: ${seconds <= 10 ? '#ef4444' : '#6b7280'}; font-weight: 500;">
+                <i class="bi bi-hourglass-split" style="margin-right: 4px;"></i>
+                ${seconds}s
+            </span>
+        `;
+
+        // Update progress bar
+        const progressFill = progressBar?.querySelector('.otp-progress-fill');
+        if (progressFill) {
+            const fillColor = seconds <= 10 ? '#ef4444' : (seconds <= 20 ? '#f59e0b' : '#10b981');
+            progressFill.style.background = `linear-gradient(90deg, ${fillColor}, #3b82f6)`;
+            progressFill.style.width = progress + '%';
+        }
+
         if (seconds <= 0) {
-            clearInterval(otpTimerInterval);
-            timerEl.textContent = '';
-            if (resendBtn) resendBtn.style.display = 'inline-block';
+            clearInterval(interval);
+            otpTimerIntervals.delete(containerId);
+            lastOtpSentForPhone.delete(containerId); // Allow re-send for same number after expiry
+            
+            // Disable OTP fields
+            container.querySelectorAll('.otp-digit').forEach(input => {
+                input.disabled = true;
+            });
+            
+            timerEl.innerHTML = '<span style="color: #ef4444; font-weight: 500;"><i class="bi bi-exclamation-circle" style="margin-right: 4px;"></i>OTP Expired</span>';
+            
+            if (resendBtn) {
+                resendBtn.style.display = 'inline-block';
+                resendBtn.disabled = false;
+                resendBtn.innerHTML = '<i class="bi bi-arrow-counterclockwise" style="margin-right: 4px;"></i>Resend OTP';
+            }
+            
+            // Clear progress bar
+            if (progressBar) {
+                progressBar.style.display = 'none';
+            }
         }
     }, 1000);
+
+    otpTimerIntervals.set(containerId, interval);
 }
 
 // Auto-focus next OTP digit
@@ -260,14 +397,55 @@ function getOtpValue(containerId) {
     return Array.from(digits).map(d => d.value).join('');
 }
 
+async function resendOtpHandler(containerId) {
+    const otpContainer = document.getElementById(containerId);
+    if (!otpContainer) return;
+
+    // Determine if this is email or phone OTP
+    const isEmailOtp = containerId.includes('Email');
+    
+    let phone, email;
+    if (isEmailOtp) {
+        const emailInput = document.getElementById('regEmail') || document.getElementById('loginEmail');
+        email = emailInput ? emailInput.value : '';
+        if (!email) {
+            showToast('Please enter your email address', 'error');
+            return;
+        }
+    } else {
+        const phoneInput = document.getElementById('regPhone') || document.getElementById('loginPhone');
+        phone = phoneInput ? phoneInput.value : '';
+        if (!phone) {
+            showToast('Please enter your phone number', 'error');
+            return;
+        }
+    }
+
+    // Call appropriate OTP send function
+    if (isEmailOtp) {
+        await sendEmailOtp(containerId);
+    } else {
+        await sendOtp(containerId);
+    }
+}
+
 async function verifyOtp(containerId) {
     const code = getOtpValue(containerId);
     if (code.length !== 6) {
         showToast('Please enter the complete 6-digit OTP', 'error');
         return false;
     }
+
     const isEmail = containerId.includes('Email');
-    const identifier = isEmail ? document.getElementById('regEmail').value : document.getElementById('regPhone').value;
+    const emailInput = document.getElementById('regEmail');
+    const phoneInput = document.getElementById('regPhone');
+
+    const identifier = isEmail ? (emailInput ? emailInput.value : '') : (phoneInput ? phoneInput.value : '');
+
+    if (!identifier) {
+        showToast('Email or phone number not found', 'error');
+        return false;
+    }
 
     try {
         const res = await fetch('/api/auth/verify-otp', {
@@ -296,26 +474,7 @@ async function verifyOtp(containerId) {
 async function handleLogin() {
     const emailTab = document.getElementById('emailTab');
     const isEmailMode = emailTab && emailTab.classList.contains('active');
-    const role = document.getElementById('role').value;
     const btn = document.getElementById('loginBtn');
-
-    if (isEmailMode) {
-        const email = document.getElementById('loginEmail').value;
-        const password = document.getElementById('loginPassword').value;
-
-        if (!validateEmail(email)) {
-            showToast('Please enter a valid email address', 'error');
-            return;
-        }
-        if (password.length < 6) {
-            showToast('Password must be at least 6 characters', 'error');
-            return;
-        }
-    } else {
-        // For now, phone/OTP login stays as UI-only; ask user to use email
-        showToast('For now, please sign in using email and password. Backend login via phone is not yet connected.', 'info');
-        return;
-    }
 
     if (btn) {
         btn.disabled = true;
@@ -323,16 +482,54 @@ async function handleLogin() {
     }
 
     try {
-        const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                email: document.getElementById('loginEmail').value,
-                password: document.getElementById('loginPassword').value
-            })
-        });
+        let response, payload;
+
+        if (isEmailMode) {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            if (!validateEmail(email)) {
+                showToast('Please enter a valid email address', 'error');
+                return;
+            }
+            if (password.length < 6) {
+                showToast('Password must be at least 6 characters', 'error');
+                return;
+            }
+
+            response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+        } else {
+            // Phone OTP login
+            const phoneInput = document.getElementById('loginPhone');
+            const countryCodeSelect = document.getElementById('loginCountryCode');
+            
+            const rawPhone = phoneInput ? phoneInput.value.trim() : '';
+            const countryCode = countryCodeSelect ? countryCodeSelect.value : '+91';
+
+            if (!validatePhone(rawPhone)) {
+                showToast('Please enter a valid phone number', 'error');
+                return;
+            }
+
+            const phone = `${countryCode}${rawPhone}`;
+
+            const otp = getOtpValue('loginOtpContainer');
+            if (otp.length !== 6) {
+                showToast('Please enter the 6-digit OTP sent to your phone', 'error');
+                return;
+            }
+
+            response = await fetch('/api/auth/login-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone, otp })
+            });
+        }
 
         const data = await response.json().catch(() => ({}));
 
@@ -635,7 +832,9 @@ async function handleRegister() {
         if (isEmail) {
             payload.email = document.getElementById('regEmail').value;
         } else {
-            payload.phone = document.getElementById('regPhone').value;
+            const rawPhone = document.getElementById('regPhone').value.trim();
+            const countryCode = document.getElementById('regCountryCode').value;
+            payload.phone = `${countryCode}${rawPhone}`;
         }
 
         if (role === 'doctor') {
@@ -682,29 +881,46 @@ async function handleRegister() {
 // ============================================================
 //  FORGOT PASSWORD MODAL
 // ============================================================
-function sendResetLink() {
+async function sendResetLink() {
     const resetEmail = document.getElementById('resetEmail');
     const resetPhone = document.getElementById('resetPhone');
     const resetEmailTab = document.getElementById('resetEmailTab');
     const isEmail = resetEmailTab && resetEmailTab.classList.contains('active');
+    const btn = document.querySelector('#forgotPasswordModal .btn-primary-healthcare');
 
     if (isEmail) {
         if (!resetEmail || !validateEmail(resetEmail.value)) {
             showToast('Please enter a valid email address', 'error');
             return;
         }
-        showToast('Password reset link sent to your email!', 'success');
+        if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+        try {
+            const res = await fetch('/api/auth/send-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: resetEmail.value })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) {
+                showToast('A verification code has been sent to your email. Use it to log in and change your password.', 'success');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('forgotPasswordModal'));
+                if (modal) modal.hide();
+            } else {
+                showToast(data.error || 'Failed to send reset code', 'error');
+            }
+        } catch (e) {
+            showToast('Network error. Please try again.', 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-send-fill"></i> Send Reset Link'; }
+        }
     } else {
         if (!resetPhone || !validatePhone(resetPhone.value)) {
             showToast('Please enter a valid phone number', 'error');
             return;
         }
-        showToast('Password reset OTP sent to your phone!', 'success');
+        // Phone password reset requires an SMS provider (not yet configured)
+        showToast('Phone password reset is not available yet. Please use your email address instead.', 'warning');
     }
-
-    // Close modal
-    const modal = bootstrap.Modal.getInstance(document.getElementById('forgotPasswordModal'));
-    if (modal) modal.hide();
 }
 
 function toggleResetMode(mode) {
@@ -730,11 +946,139 @@ function toggleResetMode(mode) {
 
 
 // ============================================================
+//  AUTO OTP TRIGGER — Real-time (fires on 10th digit)
+// ============================================================
+
+/**
+ * Guard: returns true if an OTP was already sent for this phone
+ * and the countdown timer is still active.
+ */
+function isOtpActiveForPhone(containerId, phone) {
+    const fullPhone = phone.replace(/[\s\-\(\)]/g, '');
+    const timerActive = otpTimerIntervals.has(containerId);
+    const lastPhone = lastOtpSentForPhone.get(containerId);
+    return timerActive && lastPhone === fullPhone;
+}
+
+/**
+ * Attaches a real-time input listener to a phone input field.
+ * Fires sendOtp() as soon as the user has typed a valid 10-digit number.
+ * Includes a 600ms debounce and duplicate-send guard.
+ */
+function attachRealTimePhoneOtp(phoneInputId, containerId, countryCodeId) {
+    const phoneInput = document.getElementById(phoneInputId);
+    if (!phoneInput) return;
+
+    let debounceTimer = null;
+
+    phoneInput.addEventListener('input', (e) => {
+        const raw = e.target.value.replace(/\D/g, ''); // digits only
+
+        // Only trigger on exactly 10 digits
+        if (raw.length !== 10) return;
+
+        const countryCodeEl = countryCodeId ? document.getElementById(countryCodeId) : null;
+        const countryCode = countryCodeEl ? countryCodeEl.value : '+91';
+        const fullPhone = `${countryCode}${raw}`;
+
+        // Guard: don't re-send if a live timer exists for this exact number
+        if (isOtpActiveForPhone(containerId, fullPhone)) {
+            return;
+        }
+
+        // Debounce 600ms to avoid rapid re-send when user edits digits
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(async () => {
+            // Re-check guard after debounce delay
+            if (isOtpActiveForPhone(containerId, fullPhone)) return;
+
+            // Record the number we are about to send to
+            lastOtpSentForPhone.set(containerId, fullPhone);
+
+            // Visually reveal the OTP box immediately for snappy feel
+            const otpContainer = document.getElementById(containerId);
+            if (otpContainer) {
+                otpContainer.style.display = 'block';
+                otpContainer.classList.add('animate-in');
+                otpContainer.querySelectorAll('.otp-digit').forEach(inp => {
+                    inp.value = '';
+                    inp.disabled = false;
+                });
+            }
+
+            showToast('📱 Sending OTP to your phone...', 'info');
+
+            // Determine context (register vs login)
+            const isRegister = containerId.toLowerCase().includes('reg') || window.location.pathname.includes('register');
+            const type = isRegister ? 'register' : 'login';
+
+            try {
+                const res = await fetch('/api/auth/send-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone: fullPhone, type })
+                });
+                const data = await res.json().catch(() => ({}));
+
+                if (res.ok) {
+                    showToast('✅ OTP sent! Check your phone.', 'success');
+                    startOtpCountdown(containerId);
+
+                    // Trial / dev mode: auto-fill the digits
+                    if (data.otp && data.isTrial) {
+                        console.log('%c [Trial Mode] Generated OTP: ' + data.otp, 'background: #222; color: #bada55; font-size: 1.2rem; padding: 5px;');
+                        showToast(`Trial Mode: Code is ${data.otp}`, 'warning');
+                        const digits = data.otp.split('');
+                        const inputs = otpContainer ? otpContainer.querySelectorAll('.otp-digit') : [];
+                        digits.forEach((digit, i) => { if (inputs[i]) inputs[i].value = digit; });
+                    }
+
+                    // Focus first OTP digit
+                    const firstDigit = otpContainer ? otpContainer.querySelector('.otp-digit') : null;
+                    if (firstDigit && !data.isTrial) firstDigit.focus();
+                } else {
+                    // Clear the guard so user can retry
+                    lastOtpSentForPhone.delete(containerId);
+                    showToast(data.error || 'Failed to send OTP', 'error');
+                }
+            } catch (err) {
+                lastOtpSentForPhone.delete(containerId);
+                showToast('Network error sending OTP', 'error');
+            }
+        }, 600);
+    });
+}
+
+function setupAutoOtpTrigger() {
+    // --- Registration page ---
+    const regEmailInput = document.getElementById('regEmail');
+    if (regEmailInput) {
+        regEmailInput.addEventListener('blur', (e) => {
+            const email = e.target.value.trim();
+            if (email && validateEmail(email)) {
+                sendEmailOtp('regEmailOtpContainer');
+            }
+        });
+    }
+
+    // Real-time trigger for registration phone
+    attachRealTimePhoneOtp('regPhone', 'regPhoneOtpContainer', 'regCountryCode');
+
+    // --- Login page ---
+    // Real-time trigger for login phone
+    attachRealTimePhoneOtp('loginPhone', 'loginOtpContainer', 'loginCountryCode');
+}
+
+
+// ============================================================
 //  INITIALIZATION
 // ============================================================
 document.addEventListener('DOMContentLoaded', function () {
     // Initialize drag-drop for doctor ID upload
     initDragDrop();
+
+    // Set up auto OTP trigger on registration page
+    setupAutoOtpTrigger();
 
     // Auto-attach role change listener on register page
     const roleSelect = document.getElementById('registerRole');

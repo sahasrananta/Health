@@ -1,113 +1,201 @@
 /**
- * Doctor Dashboard JavaScript
- * Handles patient records and medical file viewing
+ * Doctor Dashboard - HealthClo
+ * Wired to backend API for overview stats, patient lists, and appointments.
  */
 
-// Load classified files
-function loadClassifiedFiles() {
-    const stored = localStorage.getItem('classifiedFiles');
-    if (stored) {
-        const data = JSON.parse(stored);
-        fileAgent.importClassification(data);
+const API = '/api';
+
+function getToken() {
+    return localStorage.getItem('authToken') || '';
+}
+
+function authHeaders() {
+    return {
+        'Authorization': 'Bearer ' + getToken(),
+        'Content-Type': 'application/json'
+    };
+}
+
+// ============================================================
+//  AUTH GUARD
+// ============================================================
+function checkAuth() {
+    const token = getToken();
+    const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    if (!token || !user || user.role !== 'doctor') {
+        window.location.href = '../login.html';
+        return null;
+    }
+    return user;
+}
+
+// ============================================================
+//  OVERVIEW STATS
+// ============================================================
+async function initDashboard() {
+    try {
+        const res = await fetch(`${API}/doctor/overview`, { headers: authHeaders() });
+        if (!res.ok) return;
+        const { overview } = await res.json();
+
+        // Update stats grid (matched to IDs if available, else by order)
+        const stats = document.querySelectorAll('.stat-card .stat-value');
+        if (stats.length >= 4) {
+            stats[0].textContent = overview.totalPatients || 0;
+            stats[1].textContent = overview.totalRecords || 0;
+            stats[2].textContent = overview.activeConsents || 0;
+            // Stat 3 for appointments today (can be updated from appointments call)
+        }
+
+        // Show verification warning if not verified
+        const user = JSON.parse(localStorage.getItem('currentUser'));
+        if (user && !user.is_verified) {
+            showVerificationWarning();
+        }
+    } catch (e) {
+        console.warn('Overview stats error:', e);
     }
 }
 
-// Render medical records by department
-function renderMedicalRecords() {
-    const container = document.getElementById('doctor-files-by-dept');
-    if (!container) return;
-
-    container.innerHTML = '';
+function showVerificationWarning() {
+    const main = document.querySelector('.main-content');
+    if (!main) return;
     
-    fileAgent.getAllDepartments().forEach(dept => {
-        const deptData = fileAgent.departments[dept];
-        const deptInfo = fileAgent.getDepartmentInfo(dept);
-        
-        // Only show Cardiology for this doctor
-        if (dept !== 'Cardiology') return;
-        
-        const html = `
-            <div class="dept-container">
-                <div class="dept-section">
-                    <div class="dept-header">
-                        <div class="dept-header-icon">
-                            <i class="bi ${deptInfo.icon}"></i>
-                        </div>
-                        <div>
-                            <h3>${dept}</h3>
-                            <small>${deptData.files.length} patient records available</small>
-                        </div>
-                    </div>
-                    <div class="dept-content">
-                        ${deptData.files.length > 0 ?
-                            `<div class="file-list">
-                                ${deptData.files.map(file => `
-                                    <div class="file-item">
-                                        <div class="file-icon">
-                                            <i class="bi bi-file-earmark-pdf"></i>
-                                        </div>
-                                        <div class="file-info">
-                                            <span class="file-name">${file.name}</span>
-                                            <span class="file-meta">Date: ${new Date(file.classifiedAt).toLocaleDateString()}</span>
-                                        </div>
-                                        <div class="file-actions">
-                                            <button class="btn btn-sm btn-primary-sm" onclick="viewFile('${file.name}')"><i class="bi bi-eye"></i> View</button>
-                                            <button class="btn btn-sm btn-info"><i class="bi bi-download"></i></button>
-                                        </div>
-                                    </div>
-                                `).join('')}
-                            </div>`
-                            : `<div class="no-files-message">
-                                <i class="bi bi-inbox"></i>
-                                <p>No records available</p>
-                            </div>`
-                        }
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        container.innerHTML += html;
-    });
+    const warning = document.createElement('div');
+    warning.className = 'alert alert-warning mb-4 d-flex align-items-center';
+    warning.innerHTML = `
+        <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+        <div>
+            <strong>Account Pending Verification</strong><br>
+            Your account is currently waiting for admin approval. You will have limited access until you are verified.
+        </div>
+    `;
+    main.prepend(warning);
 }
 
-// Handle navigation
+// ============================================================
+//  MY PATIENTS (from Consents)
+// ============================================================
+async function loadPatients() {
+    const tbody = document.querySelector('#patients-section table tbody');
+    if (!tbody) return;
+
+    try {
+        const res = await fetch(`${API}/doctor/patients`, { headers: authHeaders() });
+        if (!res.ok) return;
+        const { patients } = await res.json();
+
+        if (patients.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">No authorized patients found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = patients.map(p => `
+            <tr>
+                <td><i class="bi bi-person-circle fs-5 me-2" style="color:var(--primary);"></i> ${p.first_name} ${p.last_name}</td>
+                <td>${p.dob ? new Date().getFullYear() - new Date(p.dob).getFullYear() : '—'}</td>
+                <td><span class="badge bg-info text-dark">Active Consent</span></td>
+                <td>View Allowed</td>
+                <td>—</td>
+                <td>
+                    <button class="btn btn-sm btn-primary-sm" onclick="viewPatientRecords('${p.id}')"><i class="bi bi-eye"></i> View Records</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (e) {
+        console.error('Patient load error:', e);
+    }
+}
+
+// ============================================================
+//  APPOINTMENTS
+// ============================================================
+async function loadAppointments() {
+    const tbody = document.querySelector('#appointments-section table tbody');
+    if (!tbody) return;
+
+    try {
+        const res = await fetch(`${API}/appointments/me`, { headers: authHeaders() });
+        if (!res.ok) return;
+        const { appointments } = await res.json();
+
+        if (appointments.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No appointments found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = appointments.map(a => {
+            const statusClass = { scheduled: 'bg-info', completed: 'bg-success', cancelled: 'bg-danger' }[a.status] || 'bg-secondary';
+            return `
+                <tr>
+                    <td>${new Date(a.starts_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</td>
+                    <td>${a.patient_first_name} ${a.patient_last_name}</td>
+                    <td>${a.reason || 'Checkup'}</td>
+                    <td><span class="badge ${statusClass}">${a.status}</span></td>
+                    <td>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">Action</button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" onclick="updateAppointment('${a.id}', 'completed')">Mark Completed</a></li>
+                                <li><a class="dropdown-item text-danger" href="#" onclick="updateAppointment('${a.id}', 'cancelled')">Cancel</a></li>
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch (e) {
+        console.error('Appointments load error:', e);
+    }
+}
+
+async function updateAppointment(id, status) {
+    try {
+        const res = await fetch(`${API}/appointments/${id}/status`, {
+            method: 'PATCH',
+            headers: authHeaders(),
+            body: JSON.stringify({ status })
+        });
+        if (res.ok) {
+            loadAppointments();
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+// ============================================================
+//  NAVIGATION & UI
+// ============================================================
 function setupNavigation() {
     const navLinks = document.querySelectorAll('.sidebar-nav .nav-link');
-    
     navLinks.forEach(link => {
         link.addEventListener('click', function() {
             const section = this.dataset.section;
-            
-            // Remove active class
             navLinks.forEach(l => l.classList.remove('active'));
             this.classList.add('active');
             
-            // Hide all sections
-            document.querySelectorAll('.content-section').forEach(s => {
-                s.style.display = 'none';
-            });
-            
-            // Show selected section
-            const selectedSection = document.getElementById(`${section}-section`);
-            if (selectedSection) {
-                selectedSection.style.display = 'block';
-                
-                if (section === 'files') {
-                    renderMedicalRecords();
-                }
+            document.querySelectorAll('.content-section').forEach(s => s.style.display = 'none');
+            const selected = document.getElementById(`${section}-section`);
+            if (selected) {
+                selected.style.display = 'block';
+                if (section === 'patients') loadPatients();
+                if (section === 'appointments') loadAppointments();
             }
         });
     });
 }
 
-// View file details
-function viewFile(fileName) {
-    alert(`Opening ${fileName} for review`);
+function viewPatientRecords(patientId) {
+    // Navigate to records or handle view
+    alert("Functionality to view patient specific records is coming in next release (Requires Consent check logic).");
 }
 
-// Initialize
-document.addEventListener('DOMContentLoaded', function() {
-    loadClassifiedFiles();
+// ============================================================
+//  INITIALIZE
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+    if (!checkAuth()) return;
+    initDashboard();
     setupNavigation();
 });

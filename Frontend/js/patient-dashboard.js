@@ -148,6 +148,15 @@ async function loadStats() {
             const elConsents = document.getElementById('stat-consent-requests');
             if (elConsents) elConsents.textContent = pending.length;
         }
+        
+        // Load Upcoming Appointments Count
+        const apptRes = await fetch(`${API}/appointments/me`, { headers: { 'Authorization': 'Bearer ' + getToken() } });
+        if (apptRes.ok) {
+            const { appointments } = await apptRes.json();
+            const upcoming = appointments.filter(a => a.status === 'scheduled');
+            const el = document.getElementById('stat-appointments-count');
+            if (el) el.textContent = upcoming.length;
+        }
     } catch (e) {
         console.warn('Stats load error:', e);
     }
@@ -546,6 +555,132 @@ async function revokeConsent(consentId) {
         if (res.ok) {
             toast('Consent revoked successfully', 'success');
             loadAndRenderConsents();
+            loadTrustedDoctors(); // Refresh trusted doctors too
+            loadStats();
+        } else {
+            const data = await res.json().catch(() => ({}));
+            toast(data.error || 'Revoke failed', 'error');
+        }
+    } catch (e) {
+        toast('Network error', 'error');
+    }
+}
+
+// ============================================================
+//  TRUSTED DOCTORS — load from consents (active only)
+// ============================================================
+async function loadTrustedDoctors() {
+    const container = document.getElementById('trusted-doctors-container');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div style="text-align:center;padding:48px;color:var(--text-muted);">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-3">Loading trusted doctors…</p>
+        </div>`;
+
+    try {
+        const res = await fetch(`${API}/consents/mine`, {
+            headers: { 'Authorization': 'Bearer ' + getToken() }
+        });
+
+        if (!res.ok) {
+            container.innerHTML = `<p style="color:var(--danger);padding:20px;">Failed to load trusted doctors.</p>`;
+            return;
+        }
+
+        const { consents } = await res.json();
+
+        // Filter to only show granted (active) and expired doctors — not revoked
+        const visible = consents.filter(c => !c.revoked_at);
+
+        if (visible.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center;padding:60px 20px;color:var(--text-muted);">
+                    <i class="bi bi-people" style="font-size:3.5rem;color:#cbd5e1;"></i>
+                    <h5 style="margin-top:16px;font-weight:700;color:var(--text-heading);">No Trusted Doctors Yet</h5>
+                    <p style="font-size:.9rem;max-width:380px;margin:8px auto;">Grant a doctor access to your records using the button above. They will appear here once access is granted.</p>
+                    <button class="btn-primary-sm mt-2" data-bs-toggle="modal" data-bs-target="#addDoctorModal">
+                        <i class="bi bi-plus-lg"></i> Grant Doctor Access
+                    </button>
+                </div>`;
+            return;
+        }
+
+        const accessLabels = { full: 'Full Access', view: 'View Only', limited: 'Limited' };
+        const avatarColors = [
+            'var(--primary-light)',
+            'var(--secondary-light)',
+            'var(--accent-light)',
+            'var(--info-light)',
+            'var(--warn-light)'
+        ];
+        const textColors = [
+            'var(--primary)',
+            'var(--secondary)',
+            'var(--accent)',
+            'var(--info)',
+            'var(--warn)'
+        ];
+
+        const now = new Date().toISOString();
+
+        const cards = visible.map((c, i) => {
+            const colorIdx = i % avatarColors.length;
+            const isActive = c.isActive;
+            const isExpired = !isActive && !c.revoked_at;
+            const expiresDate = c.expires_at ? new Date(c.expires_at).toLocaleDateString() : 'Never';
+            const grantedDate = new Date(c.created_at).toLocaleDateString();
+
+            const badgeHTML = isActive
+                ? `<span class="badge-status-granted"><i class="bi bi-check-circle-fill"></i> Access Granted</span>`
+                : `<span class="badge bg-warning text-dark" style="border-radius:20px;padding:5px 12px;font-size:.75rem;"><i class="bi bi-clock"></i> Expired</span>`;
+
+            const actionHTML = isActive
+                ? `<button class="btn btn-sm btn-outline-danger" onclick="revokeConsentFromDoctors('${c.id}')">
+                        <i class="bi bi-x-circle"></i> Revoke
+                   </button>`
+                : `<span class="text-muted" style="font-size:.8rem;">Expired ${expiresDate}</span>`;
+
+            return `
+                <div class="col-md-6 col-lg-4">
+                    <div class="doctor-card" style="position:relative;">
+                        <div class="doctor-avatar" style="background:${avatarColors[colorIdx]};color:${textColors[colorIdx]};">
+                            <i class="bi bi-person-fill"></i>
+                        </div>
+                        <h6 style="margin-top:12px;font-weight:700;">Dr. ${c.doctor_first_name} ${c.doctor_last_name}</h6>
+                        <small class="text-muted d-block">${accessLabels[c.access_level] || c.access_level}</small>
+                        <small class="text-muted d-block mb-3">
+                            <i class="bi bi-calendar3" style="margin-right:4px;"></i>Granted: ${grantedDate}
+                            ${c.expires_at ? ` · Expires: ${expiresDate}` : ''}
+                        </small>
+                        ${badgeHTML}
+                        <div class="mt-3 d-flex gap-2 justify-content-center">
+                            ${actionHTML}
+                        </div>
+                    </div>
+                </div>`;
+        }).join('');
+
+        container.innerHTML = `<div class="row g-4">${cards}</div>`;
+
+    } catch (e) {
+        console.error(e);
+        container.innerHTML = `<p style="color:var(--danger);padding:20px;">Network error loading trusted doctors.</p>`;
+    }
+}
+
+async function revokeConsentFromDoctors(consentId) {
+    if (!confirm('Revoke access for this doctor?')) return;
+    try {
+        const res = await fetch(`${API}/consents/${consentId}/revoke`, {
+            method: 'PATCH',
+            headers: authHeaders()
+        });
+        if (res.ok) {
+            toast('Consent revoked successfully', 'success');
+            loadTrustedDoctors();
+            loadAndRenderConsents();
             loadStats();
         } else {
             const data = await res.json().catch(() => ({}));
@@ -622,12 +757,151 @@ async function grantConsentById() {
 }
 
 // ============================================================
+//  APPOINTMENTS — load and render
+// ============================================================
+async function loadAndRenderAppointments() {
+    const tbody = document.getElementById('appointment-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Loading…</td></tr>';
+
+    try {
+        const res = await fetch(`${API}/appointments/me`, {
+            headers: { 'Authorization': 'Bearer ' + getToken() }
+        });
+
+        if (!res.ok) {
+            tbody.innerHTML = '<tr><td colspan="5" style="color:var(--danger);text-align:center;">Failed to load appointments.</td></tr>';
+            return;
+        }
+
+        const { appointments } = await res.json();
+
+        if (appointments.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted);">No appointments scheduled yet.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = appointments.map(a => {
+            const statusClass = { scheduled: 'bg-info', completed: 'bg-success', cancelled: 'bg-danger' }[a.status] || 'bg-secondary';
+            const dateStr = new Date(a.starts_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+            
+            return `<tr>
+                <td><strong>${dateStr}</strong></td>
+                <td><i class="bi bi-person-circle" style="color:var(--primary);"></i> Dr. ${a.doctor_first_name} ${a.doctor_last_name}</td>
+                <td>${a.specialization}</td>
+                <td><span class="badge ${statusClass}">${a.status}</span></td>
+                <td>
+                    ${a.status === 'scheduled' ? `<button class="btn btn-sm btn-outline-danger" onclick="cancelAppointment('${a.id}')">Cancel</button>` : '—'}
+                </td>
+            </tr>`;
+        }).join('');
+
+    } catch (e) {
+        console.error(e);
+        tbody.innerHTML = '<tr><td colspan="5" style="color:var(--danger);text-align:center;">Network error.</td></tr>';
+    }
+}
+
+async function cancelAppointment(id) {
+    if (!confirm('Are you sure you want to cancel this appointment?')) return;
+    try {
+        const res = await fetch(`${API}/appointments/${id}/status`, {
+            method: 'PATCH',
+            headers: authHeaders(),
+            body: JSON.stringify({ status: 'cancelled' })
+        });
+        if (res.ok) {
+            toast('Appointment cancelled', 'success');
+            loadAndRenderAppointments();
+            loadStats();
+        }
+    } catch (e) {
+        toast('Error cancelling appointment', 'error');
+    }
+}
+
+// ============================================================
+//  DOCTOR SEARCH (FOR CONSENT)
+// ============================================================
+let searchTimeout = null;
+function initDoctorSearch() {
+    const input = document.getElementById('doctorSearchInput');
+    const results = document.getElementById('doctorSearchResults');
+    if (!input || !results) return;
+
+    input.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        const q = e.target.value;
+        if (q.length < 2) {
+            results.innerHTML = '';
+            return;
+        }
+
+        searchTimeout = setTimeout(async () => {
+            try {
+                const res = await fetch(`${API}/doctor/search?q=${encodeURIComponent(q)}`, {
+                    headers: authHeaders()
+                });
+                if (!res.ok) return;
+                const { doctors } = await res.json();
+                
+                results.innerHTML = doctors.map(d => `
+                    <button type="button" class="list-group-item list-group-item-action" onclick="selectDoctor('${d.id}', 'Dr. ${d.first_name} ${d.last_name}')">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>Dr. ${d.first_name} ${d.last_name}</strong><br>
+                                <small class="text-muted">${d.specialization} · ${d.hospital_affiliation || 'HealthClo'}</small>
+                            </div>
+                            <i class="bi bi-plus-circle text-primary"></i>
+                        </div>
+                    </button>
+                `).join('');
+                
+                if (doctors.length === 0) {
+                    results.innerHTML = '<div class="list-group-item text-muted">No verified doctors found.</div>';
+                }
+            } catch (e) {
+                console.warn(e);
+            }
+        }, 300);
+    });
+}
+
+function selectDoctor(id, name) {
+    const idInput = document.getElementById('grantDoctorId');
+    if (idInput) {
+        idInput.value = id;
+        toast(`Selected ${name}`, 'info');
+        // Clear search
+        document.getElementById('doctorSearchInput').value = '';
+        document.getElementById('doctorSearchResults').innerHTML = '';
+    }
+}
+
+// ============================================================
 //  LOGOUT
 // ============================================================
 function logout() {
     localStorage.removeItem('authToken');
     localStorage.removeItem('currentUser');
     window.location.href = '../login.html';
+}
+
+// ============================================================
+//  SIDEBAR NAVIGATION
+// ============================================================
+function showSection(sectionId) {
+    document.querySelectorAll('.content-section').forEach(s => s.style.display = 'none');
+    document.getElementById(`${sectionId}-section`).style.display = 'block';
+    
+    document.querySelectorAll('.sidebar-nav .nav-link').forEach(l => l.classList.remove('active'));
+    document.querySelector(`.nav-link[data-section="${sectionId}"]`).classList.add('active');
+    
+    if (sectionId === 'records') loadAndRenderRecords();
+    if (sectionId === 'consent') loadAndRenderConsents();
+    if (sectionId === 'doctors') loadTrustedDoctors();
+    if (sectionId === 'appointments') loadAndRenderAppointments();
 }
 
 // ============================================================
@@ -640,10 +914,25 @@ document.addEventListener('DOMContentLoaded', function () {
     populateUserName(user);
     initProfile();
     loadStats();
+    initDoctorSearch();
+
+    // Wire navigation
+    document.querySelectorAll('.sidebar-nav .nav-link').forEach(link => {
+        link.addEventListener('click', () => showSection(link.dataset.section));
+    });
 
     // Wire upload button
     const uploadBtn = document.getElementById('uploadBtn');
     if (uploadBtn) {
         uploadBtn.addEventListener('click', uploadRecord);
+    }
+
+    // Also reload trusted doctors after granting consent from modal
+    const addDoctorModal = document.getElementById('addDoctorModal');
+    if (addDoctorModal) {
+        addDoctorModal.addEventListener('hidden.bs.modal', () => {
+            loadTrustedDoctors();
+            loadAndRenderConsents();
+        });
     }
 });
