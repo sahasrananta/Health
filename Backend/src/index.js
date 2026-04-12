@@ -8,7 +8,7 @@ import morgan from 'morgan';
 
 import { config } from './config.js';
 import { getDb } from './db.js';
-import { authRoutes } from './routes/authRoutes.js';
+import { authRoutes, initializeEmailService } from './routes/authRoutes.js';
 import { recordRoutes } from './routes/recordRoutes.js';
 import { departmentRoutes } from './routes/departmentRoutes.js';
 import { consentRoutes } from './routes/consentRoutes.js';
@@ -89,6 +89,9 @@ app.use((err, req, res, next) => {
   console.error(err);
   res.status(500).json({ error: 'Internal server error' });
 });
+
+// Initialize email service before starting server
+await initializeEmailService();
 
 app.listen(config.port, () => {
   console.log(`Backend listening on http://localhost:${config.port}`);

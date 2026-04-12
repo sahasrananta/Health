@@ -18,30 +18,54 @@ const otpAttempts = new Map(); // Track resend attempts
 const OTP_RESEND_COOLDOWN_MS = 30 * 1000; // 30 seconds between resends
 const MAX_RESEND_ATTEMPTS = 5; // Max resends per session
 
-// Email Configuration (Resend)
+// Email Configuration - Initialize with Ethereal (test) or real providers
 let resend = null;
-if (config.resendApiKey) {
-  resend = new Resend(config.resendApiKey);
-  console.log('✅ Resend Email API configured');
-}
-
-// Email Configuration (Nodemailer/SMTP)
 let transporter = null;
-if (config.emailUser && config.emailPass) {
-  transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: config.emailUser,
-      pass: config.emailPass
-    }
-  });
-  console.log('✅ Nodemailer SMTP (Gmail) configured for:', config.emailUser);
-} else {
-  console.log('⚠️ Nodemailer SMTP not configured: EMAIL_USER or EMAIL_PASS missing');
-}
 
-if (!resend && !transporter) {
-  console.log('ℹ️ No email provider configured. Real emails will fail. (Render blocks SMTP)');
+// Create Ethereal test account (free, no signup needed)
+async function initializeEmailService() {
+  try {
+    // Generate test account
+    const testAccount = await nodemailer.createTestAccount();
+    transporter = nodemailer.createTransport({
+      host: 'smtp.ethereal.email',
+      port: 587,
+      secure: false,
+      auth: {
+        user: testAccount.user,
+        pass: testAccount.pass
+      }
+    });
+    
+    console.log('✅ Ethereal Test Email configured (No API key needed!)');
+    console.log(`📧 Test Account: ${testAccount.user}`);
+    console.log('📧 Link to test emails will be displayed after sending each email');
+  } catch (error) {
+    console.error('⚠️ Failed to initialize Ethereal:', error.message);
+    transporter = null;
+  }
+
+  // Try Resend as secondary if configured
+  if (config.resendApiKey) {
+    resend = new Resend(config.resendApiKey);
+    console.log('✅ Resend Email API available as fallback');
+  }
+
+  // Try real Gmail SMTP if credentials provided
+  if (config.emailUser && config.emailPass && config.nodeEnv === 'production') {
+    try {
+      const gmailTransporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: config.emailUser,
+          pass: config.emailPass
+        }
+      });
+      console.log('✅ Gmail SMTP configured for production');
+    } catch (error) {
+      console.log('ℹ️ Gmail SMTP setup failed:', error.message);
+    }
+  }
 }
 
 // Twilio SMS Configuration
@@ -60,6 +84,7 @@ if (config.twilioAccountSid && config.twilioAuthToken && config.twilioAccountSid
 async function sendRealEmail(to, otp) {
   const cleanTo = to.trim();
   console.log(`[Email] Attempting to send OTP to: "${cleanTo}"`);
+  
   const subject = 'Verify your HealthClo Account';
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
@@ -72,57 +97,53 @@ async function sendRealEmail(to, otp) {
     </div>
   `;
 
-  // Try Nodemailer first (since it's configured in .env)
+  // Try Ethereal (test email) first
   if (transporter) {
     try {
-      await transporter.sendMail({
-        from: `"HealthClo Security" <${config.emailUser}>`,
+      const info = await transporter.sendMail({
+        from: '"HealthClo Security" <noreply@healthclo.test>',
         to: cleanTo,
         subject,
         html
       });
-      console.log(`✅ [Email] Sent via Nodemailer to ${cleanTo}`);
+      
+      console.log(`✅ [Email] Sent via Ethereal to ${cleanTo}`);
+      // Display test email URL
+      const testUrl = nodemailer.getTestMessageUrl(info);
+      if (testUrl) {
+        console.log(`📧 View Email: ${testUrl}`);
+      }
       return true;
     } catch (error) {
-      console.error('--- NODEMAILER ERROR ---');
-      console.error(`Status: FAILED for recipient: ${cleanTo}`);
-      console.error(`Error Code: ${error.code || 'N/A'}`);
-      console.error(`Error Message: ${error.message}`);
-      if (error.code === 'EAUTH') {
-        console.error('Hint: Gmail authentication failed. Check your App Password and ensure 2FA is on.');
-      }
-      // Fall through to Resend if it's also configured
+      console.error('⚠️ [Ethereal] Error:', error.message);
+      // Fall through to Resend
     }
-  } else {
-    console.log('ℹ️ Nodemailer transporter is not initialized.');
   }
 
-  // Try Resend as fallback or alternative
+  // Try Resend as fallback
   if (resend) {
     try {
       const { data, error } = await resend.emails.send({
-        from: `HealthClo Security <onboarding@resend.dev>`,
-        to: [cleanTo],
+        from: 'HealthClo <onboarding@resend.dev>',
+        to: cleanTo,
         subject,
         html
       });
       
       if (error) {
-        console.error('--- RESEND ERROR ---');
-        console.error(error);
+        console.error('⚠️ [Resend] Error - Trial mode may only send to verified emails');
         return false;
       }
       
       console.log(`✅ [Email] Sent via Resend to ${cleanTo}`);
       return true;
     } catch (error) {
-      console.error('--- RESEND THROW CATCH ---');
-      console.error(error.message);
+      console.error('⚠️ [Resend] Error:', error.message);
       return false;
     }
   }
-  
-  console.warn('No email provider (Nodemailer or Resend) is configured.');
+
+  console.warn('⚠️ No email provider is configured.');
   return false;
 }
 
@@ -553,3 +574,5 @@ authRoutes.delete('/profile', requireAuth, (req, res) => {
   }
 });
 
+// Export initialization function
+export { initializeEmailService };
