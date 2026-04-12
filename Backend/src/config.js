@@ -32,7 +32,9 @@ export const config = {
   emailUser: process.env.EMAIL_USER,
   emailPass: process.env.EMAIL_PASS,
   resendApiKey: process.env.RESEND_API_KEY,
+  resendVerifiedEmail: process.env.RESEND_VERIFIED_EMAIL || '24r21a05a4@mlrit.ac.in',
   twilioAccountSid: process.env.TWILIO_ACCOUNT_SID,
   twilioAuthToken: process.env.TWILIO_AUTH_TOKEN,
   twilioPhoneNumber: process.env.TWILIO_PHONE_NUMBER
 };
+

@@ -83,23 +83,58 @@ if (config.twilioAccountSid && config.twilioAuthToken && config.twilioAccountSid
 
 async function sendRealEmail(to, otp) {
   const cleanTo = to.trim();
-  console.log(`[Email] Attempting to send OTP to: "${cleanTo}"`);
+  console.log(`\n[📧 Email OTP] Attempting to send to: "${cleanTo}"`);
   
-  const subject = 'Verify your HealthClo Account';
+  const subject = 'Your HealthClo Account Verification Code';
   const html = `
-    <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-      <h2 style="color: #2563eb;">Welcome to HealthClo!</h2>
-      <p>Please use the verification code below to complete your registration:</p>
-      <div style="font-size: 32px; font-weight: bold; background: #f0f7ff; padding: 20px; text-align: center; border-radius: 8px; color: #1e40af; letter-spacing: 5px;">
-        ${otp}
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: auto; padding: 40px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px;">
+      <div style="background: white; border-radius: 8px; padding: 30px; text-align: center;">
+        <h2 style="color: #2563eb; margin: 0 0 10px 0; font-size: 24px;">HealthClo Account Verification</h2>
+        <p style="color: #64748b; margin: 0 0 30px 0; font-size: 14px;">Your secure verification code is:</p>
+        
+        <div style="font-size: 48px; font-weight: bold; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 8px; letter-spacing: 8px; margin: 0 0 30px 0; font-family: 'Courier New', monospace;">
+          ${otp}
+        </div>
+        
+        <p style="color: #94a3b8; font-size: 13px; margin: 0 0 20px 0;">⏱️ This code expires in 10 minutes</p>
+        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+        <p style="color: #64748b; font-size: 12px; margin: 0;">If you didn't request this, please ignore this email.</p>
       </div>
-      <p style="margin-top: 20px; color: #64748b; font-size: 14px;">This code will expire in 10 minutes. If you didn't request this, you can safely ignore this email.</p>
     </div>
   `;
 
-  // Try Ethereal (test email) first
+  // PRIMARY: Use Resend (works in trial mode with verified email)
+  if (resend) {
+    try {
+      console.log(`[📧] Attempting Resend API...`);
+      // Use the verified email from Resend as the "from" address
+      // This allows sending to ANY email in trial mode
+      const verifiedEmail = config.resendVerifiedEmail || '24r21a05a4@mlrit.ac.in';
+      const { data, error } = await resend.emails.send({
+        from: `HealthClo <${verifiedEmail}>`,
+        to: cleanTo,
+        subject,
+        html,
+        replyTo: verifiedEmail
+      });
+      
+      if (!error) {
+        console.log(`✅ [Email] OTP sent successfully via Resend to ${cleanTo}`);
+        console.log(`[📊] Resend Status: Delivered`);
+        return true;
+      } else {
+        console.error(`⚠️ [Resend] Error:`, error);
+        console.log(`[💡] Hint: Need to verify a domain? Go to https://resend.com/domains`);
+      }
+    } catch (error) {
+      console.error(`❌ [Resend] Exception:`, error.message);
+    }
+  }
+
+  // FALLBACK: Try Ethereal (test email - always works for testing)
   if (transporter) {
     try {
+      console.log(`[📧] Attempting Ethereal Test Email...`);
       const info = await transporter.sendMail({
         from: '"HealthClo Security" <noreply@healthclo.test>',
         to: cleanTo,
@@ -107,68 +142,67 @@ async function sendRealEmail(to, otp) {
         html
       });
       
-      console.log(`✅ [Email] Sent via Ethereal to ${cleanTo}`);
-      // Display test email URL
+      console.log(`✅ [Email] OTP sent via Ethereal Test Email to ${cleanTo}`);
       const testUrl = nodemailer.getTestMessageUrl(info);
       if (testUrl) {
-        console.log(`📧 View Email: ${testUrl}`);
+        console.log(`📧 VIEW EMAIL: ${testUrl}`);
       }
       return true;
     } catch (error) {
-      console.error('⚠️ [Ethereal] Error:', error.message);
-      // Fall through to Resend
+      console.error(`⚠️ [Ethereal] Error:`, error.message);
     }
   }
 
-  // Try Resend as fallback
-  if (resend) {
-    try {
-      const { data, error } = await resend.emails.send({
-        from: 'HealthClo <onboarding@resend.dev>',
-        to: cleanTo,
-        subject,
-        html
-      });
-      
-      if (error) {
-        console.error('⚠️ [Resend] Error - Trial mode may only send to verified emails');
-        return false;
-      }
-      
-      console.log(`✅ [Email] Sent via Resend to ${cleanTo}`);
-      return true;
-    } catch (error) {
-      console.error('⚠️ [Resend] Error:', error.message);
-      return false;
-    }
-  }
-
-  console.warn('⚠️ No email provider is configured.');
+  console.error(`❌ [Email] No email provider available!`);
   return false;
 }
 
+
 async function sendSMS(to, otp) {
-  if (!twilioClient || !config.twilioPhoneNumber) {
-    console.warn(`[OTP] Twilio not configured. MOCK SMS generated for ${to}: ${otp}`);
+  const phoneNumber = to.trim();
+  console.log(`\n[📱 SMS OTP] Attempting to send to: "${phoneNumber}"`);
+  
+  if (!twilioClient) {
+    console.log(`⚠️ [SMS] Twilio client not initialized. Using MOCK mode.`);
+    console.log(`[📱 MOCK] SMS Code for ${phoneNumber}: ${otp}`);
+    console.log(`[💡] To enable real SMS: Add valid TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER to .env`);
+    return false;
+  }
+
+  if (!config.twilioPhoneNumber) {
+    console.log(`⚠️ [SMS] Twilio phone number not configured. Using MOCK mode.`);
+    console.log(`[📱 MOCK] SMS Code for ${phoneNumber}: ${otp}`);
+    console.log(`[💡] Set TWILIO_PHONE_NUMBER in .env file`);
     return false;
   }
   
   try {
     // Ensure 'to' number has a plus sign for Twilio
-    const formattedTo = to.startsWith('+') ? to : `+${to}`;
+    const formattedTo = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
     
+    console.log(`[📱] Attempting Twilio SMS delivery...`);
     const message = await twilioClient.messages.create({
-      body: `HealthClo: Your secure verification code is ${otp}. Valid for 10 minutes.`,
+      body: `HealthClo: Your verification code is ${otp}. Valid for 10 minutes. Do not share this code.`,
       from: config.twilioPhoneNumber,
       to: formattedTo
     });
     
-    console.log(`✅ [OTP] SMS sent successfully. SID: ${message.sid}`);
+    console.log(`✅ [SMS] OTP sent successfully via Twilio`);
+    console.log(`[📊] Message SID: ${message.sid}`);
+    console.log(`[📊] Status: ${message.status}`);
     return true;
   } catch (error) {
-    console.error('❌ [OTP] Twilio SMS Transmission Failed');
-    console.error(`- Error Code: ${error.code || 'Unknown'}`);
-    console.error(`- Message: ${error.message}`);
+    console.error(`❌ [SMS] Twilio delivery failed`);
+    console.error(`[Error Code] ${error.code || 'UNKNOWN'}`);
+    console.error(`[Error Message] ${error.message}`);
+    
+    if (error.message.includes('21614') || error.message.includes('21211')) {
+      console.log(`[💡] The 'from' number is not valid. Buy a real Twilio number at https://www.twilio.com/console/phone-numbers`);
+    }
+    if (error.message.includes('20003')) {
+      console.log(`[💡] Account not authorized. Check TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN`);
+    }
+    console.log(`[📱 FALLBACK] SMS Code logged above: ${otp}`);
     return false;
   }
 }
