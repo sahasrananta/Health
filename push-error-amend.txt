@@ -1,6 +1,0 @@
-remote: 
-remote: Create a pull request for 'render-ready-v2' on GitHub by visiting:        
-remote:      https://github.com/sahasrananta/Health/pull/new/render-ready-v2        
-remote: 
-To https://github.com/sahasrananta/Health.git
- * [new branch]      render-ready-v2 -> render-ready-v2

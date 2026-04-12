@@ -228,10 +228,19 @@ async function sendEmailOtp(containerId) {
         otpContainer.closest('.auth-card').querySelector('input[type="email"]') :
         document.querySelector('input[type="email"]');
 
-    if (emailInput && !validateEmail(emailInput.value)) {
+    if (emailInput && !validateEmail(emailInput.value.trim())) {
         showToast('Please enter a valid email address', 'error');
         emailInput.focus();
         return;
+    }
+    const emailValue = emailInput.value.trim();
+
+    // UI Feedback: Loading state on button
+    const verifyBtn = emailInput.parentElement.querySelector('button');
+    const originalBtnText = verifyBtn ? verifyBtn.innerHTML : '';
+    if (verifyBtn) {
+        verifyBtn.disabled = true;
+        verifyBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
     }
 
     otpContainer.style.display = 'block';
@@ -241,6 +250,8 @@ async function sendEmailOtp(containerId) {
     otpContainer.querySelectorAll('.otp-digit').forEach(input => {
         input.value = '';
         input.disabled = false;
+        input.style.borderColor = '#e5e7eb';
+        input.style.backgroundColor = '#fff';
     });
 
     const firstInput = otpContainer.querySelector('.otp-digit');
@@ -255,7 +266,7 @@ async function sendEmailOtp(containerId) {
         const res = await fetch('/api/auth/send-otp', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ email: emailInput.value, type })
+            body: JSON.stringify({ email: emailValue, type })
         });
         
         const data = await res.json().catch(() => ({}));
@@ -272,7 +283,10 @@ async function sendEmailOtp(containerId) {
                 const digits = data.otp.split('');
                 const inputs = otpContainer.querySelectorAll('.otp-digit');
                 digits.forEach((digit, i) => {
-                    if (inputs[i]) inputs[i].value = digit;
+                    if (inputs[i]) {
+                        inputs[i].value = digit;
+                        // For trial mode, we don't auto-verify to let user see it
+                    }
                 });
             }
         } else {
@@ -280,6 +294,11 @@ async function sendEmailOtp(containerId) {
         }
     } catch(e) {
         showToast('Network error sending OTP', 'error');
+    } finally {
+        if (verifyBtn) {
+            verifyBtn.disabled = false;
+            verifyBtn.innerHTML = originalBtnText;
+        }
     }
 }
 
@@ -378,9 +397,16 @@ function startOtpCountdown(containerId) {
 }
 
 // Auto-focus next OTP digit
+// Auto-focus next OTP digit + Real-time auto-verification
 function handleOtpInput(input, index, maxIndex) {
     if (input.value.length === 1 && index < maxIndex) {
         input.nextElementSibling.focus();
+    }
+    
+    // Auto-verify when last digit is entered
+    const container = input.closest('.mb-3[id]');
+    if (container && getOtpValue(container.id).length === 6) {
+        verifyOtp(container.id);
     }
 }
 
@@ -436,16 +462,22 @@ async function verifyOtp(containerId) {
         return false;
     }
 
-    const isEmail = containerId.includes('Email');
-    const emailInput = document.getElementById('regEmail');
-    const phoneInput = document.getElementById('regPhone');
-
-    const identifier = isEmail ? (emailInput ? emailInput.value : '') : (phoneInput ? phoneInput.value : '');
-
-    if (!identifier) {
-        showToast('Email or phone number not found', 'error');
-        return false;
+    const container = document.getElementById(containerId);
+    const digits = container?.querySelectorAll('.otp-digit');
+    
+    // Visual feedback: Start verifying
+    if (digits) {
+        digits.forEach(d => {
+            d.disabled = true;
+            d.style.opacity = '0.7';
+        });
     }
+
+    const isEmail = containerId.includes('Email');
+    const emailInput = document.getElementById('regEmail') || document.getElementById('loginEmail');
+    const phoneInput = document.getElementById('regPhone') || document.getElementById('loginPhone');
+
+    const identifier = isEmail ? (emailInput ? emailInput.value.trim() : '') : (phoneInput ? phoneInput.value.trim() : '');
 
     try {
         const res = await fetch('/api/auth/verify-otp', {
@@ -453,16 +485,33 @@ async function verifyOtp(containerId) {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ [isEmail ? 'email' : 'phone']: identifier, otp: code })
         });
+        
         if (res.ok) {
             showToast('OTP verified successfully!', 'success');
+            if (digits) {
+                digits.forEach(d => {
+                    d.style.borderColor = '#10b981';
+                    d.style.backgroundColor = '#f0fdf4';
+                });
+            }
             return true;
         } else {
             const data = await res.json().catch(()=>({}));
             showToast(data.error || 'Invalid OTP', 'error');
+            // Re-enable digits on failure
+            if (digits) {
+                digits.forEach(d => {
+                    d.disabled = false;
+                    d.style.opacity = '1';
+                    d.style.borderColor = '#ef4444';
+                });
+                digits[0].focus();
+            }
             return false;
         }
     } catch(e) {
         showToast('Network error verifying OTP', 'error');
+        if (digits) digits.forEach(d => { d.disabled = false; d.style.opacity = '1'; });
         return false;
     }
 }
@@ -1092,3 +1141,43 @@ document.addEventListener('DOMContentLoaded', function () {
         pwdInput.addEventListener('input', updatePasswordStrength);
     }
 });
+// ============================================================
+//  SESSION PERSISTENCE
+// ============================================================
+function checkSession() {
+    const token = localStorage.getItem('authToken');
+    const userStr = localStorage.getItem('currentUser');
+    
+    if (token && userStr) {
+        try {
+            const user = JSON.parse(userStr);
+            if (user && user.role) {
+                const dashboard = {
+                    patient: 'patient/dashboard.html',
+                    doctor: 'doctor/dashboard.html',
+                    admin: 'admin/dashboard.html'
+                }[user.role];
+                
+                if (dashboard) {
+                    // Adjust path based on current location
+                    const prefix = window.location.pathname.includes('/patient/') || 
+                                 window.location.pathname.includes('/doctor/') || 
+                                 window.location.pathname.includes('/admin/') ? '../' : '';
+                    
+                    // Only redirect if we are on a landing/auth page
+                    const isAuthPage = window.location.pathname.endsWith('login.html') || 
+                                      window.location.pathname.endsWith('register.html') || 
+                                      window.location.pathname.endsWith('index.html') ||
+                                      window.location.pathname === '/';
+                    
+                    if (isAuthPage) {
+                        window.location.href = prefix + dashboard;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('Session check failed:', e);
+            localStorage.clear();
+        }
+    }
+}

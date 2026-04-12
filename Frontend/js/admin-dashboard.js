@@ -86,7 +86,7 @@ async function loadAllUsers() {
             const statusClass = u.is_verified ? 'bg-success' : 'bg-warning text-dark';
             const statusLabel = u.is_verified ? 'Verified' : 'Pending';
             const roleClass = { patient: 'bg-info text-dark', doctor: 'bg-primary' }[u.role] || 'bg-secondary';
-            
+
             let actions = `<button class="btn btn-sm btn-outline-danger" title="Delete User"><i class="bi bi-trash"></i></button>`;
             if (u.role === 'doctor' && !u.is_verified) {
                 actions = `<button class="btn btn-sm btn-success me-2" onclick="verifyDoctor('${u.id}')" title="Verify Doctor"><i class="bi bi-check-circle"></i> Verify</button>` + actions;
@@ -118,7 +118,7 @@ async function loadAllUsers() {
 // ============================================================
 async function verifyDoctor(id) {
     if (!confirm('Verify this doctor credentials and grant access?')) return;
-    
+
     try {
         const res = await fetch(`${API}/admin/doctors/${id}/verify`, {
             method: 'POST',
@@ -130,7 +130,7 @@ async function verifyDoctor(id) {
             loadAllUsers();
             loadOverview();
         } else {
-            const data = await res.json().catch(()=>({}));
+            const data = await res.json().catch(() => ({}));
             alert(data.error || 'Verification failed');
         }
     } catch (e) {
@@ -144,15 +144,15 @@ async function verifyDoctor(id) {
 function setupNavigation() {
     const navLinks = document.querySelectorAll('.sidebar-nav .nav-link');
     navLinks.forEach(link => {
-        link.addEventListener('click', function() {
+        link.addEventListener('click', function () {
             const section = this.dataset.section;
             navLinks.forEach(l => l.classList.remove('active'));
             this.classList.add('active');
-            
+
             document.querySelectorAll('.content-section').forEach(s => s.style.display = 'none');
             const selected = document.getElementById(`${section}-section`);
             if (selected) selected.style.display = 'block';
-            
+
             if (section === 'users') loadAllUsers();
             if (section === 'audit') loadAuditLogs();
         });

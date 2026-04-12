@@ -60,7 +60,7 @@ adminRoutes.get('/audit-logs', requireAuth, requireRole('admin'), (req, res) => 
   const logs = db.prepare(`
     SELECT l.*, u.first_name || ' ' || u.last_name AS actor_name
     FROM audit_logs l
-    LEFT JOIN users u ON l.actor_id = u.id
+    LEFT JOIN users u ON l.actor_user_id = u.id
     ORDER BY l.created_at DESC
     LIMIT 250
   `).all();

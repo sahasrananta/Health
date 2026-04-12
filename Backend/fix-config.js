@@ -1,4 +1,11 @@
-import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const configPath = path.join(__dirname, 'src', 'config.js');
+
+const config = `import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -15,7 +22,7 @@ function validateEnv() {
   
   for (const key of requiredInProd) {
     if (isProd && !process.env[key]) {
-      throw new Error(`Missing required environment variable: ${key}`);
+      throw new Error(\`Missing required environment variable: \${key}\`);
     }
   }
 }
@@ -35,4 +42,7 @@ export const config = {
   twilioAccountSid: process.env.TWILIO_ACCOUNT_SID,
   twilioAuthToken: process.env.TWILIO_AUTH_TOKEN,
   twilioPhoneNumber: process.env.TWILIO_PHONE_NUMBER
-};
+};`;
+
+fs.writeFileSync(configPath, config);
+console.log('✅ Config file fixed successfully!');

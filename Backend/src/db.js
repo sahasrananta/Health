@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomBytes } from 'node:crypto';
 import { config } from './config.js';
 
 let dbInstance = null;
@@ -97,13 +97,22 @@ function migrate(db) {
   // Seed default admin if no admin exists
   const adminExists = db.prepare("SELECT 1 FROM users WHERE role = 'admin'").get();
   if (!adminExists) {
-    const passwordHash = bcrypt.hashSync('Admin123!', 10);
+    // Generate a secure random password for the default admin account
+    const defaultAdminPassword = process.env.ADMIN_PASSWORD || 
+      randomBytes(12).toString('hex');
+    const passwordHash = bcrypt.hashSync(defaultAdminPassword, 10);
     const now = new Date().toISOString();
     db.prepare(`
       INSERT INTO users (id, role, email, phone, password_hash, first_name, last_name, is_verified, created_at)
       VALUES (?, 'admin', 'admin@healthclo.com', NULL, ?, 'System', 'Admin', 1, ?)
     `).run(randomUUID(), passwordHash, now);
-    console.log('✅ Default admin seeded: admin@healthclo.com / Admin123!');
+    console.log('✅ Default admin seeded');
+    if (!process.env.ADMIN_PASSWORD) {
+      console.log('⚠️ IMPORTANT: Use this credential to login (then change password immediately):');
+      console.log(`   Email: admin@healthclo.com`);
+      console.log(`   Temporary Password: ${defaultAdminPassword}`);
+      console.log('⚠️ Set ADMIN_PASSWORD env var to use a custom password instead');
+    }
   }
 }
 

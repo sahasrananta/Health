@@ -2,6 +2,7 @@ import express from 'express';
 import { randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import twilio from 'twilio';
 import { z } from 'zod';
 import { config } from '../config.js';
@@ -17,13 +18,30 @@ const otpAttempts = new Map(); // Track resend attempts
 const OTP_RESEND_COOLDOWN_MS = 30 * 1000; // 30 seconds between resends
 const MAX_RESEND_ATTEMPTS = 5; // Max resends per session
 
-// Email Configuration
+// Email Configuration (Resend)
 let resend = null;
 if (config.resendApiKey) {
   resend = new Resend(config.resendApiKey);
   console.log('✅ Resend Email API configured');
+}
+
+// Email Configuration (Nodemailer/SMTP)
+let transporter = null;
+if (config.emailUser && config.emailPass) {
+  transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: config.emailUser,
+      pass: config.emailPass
+    }
+  });
+  console.log('✅ Nodemailer SMTP (Gmail) configured for:', config.emailUser);
 } else {
-  console.log('ℹ️ Resend not configured. Real emails will fail. (Render blocks SMTP)');
+  console.log('⚠️ Nodemailer SMTP not configured: EMAIL_USER or EMAIL_PASS missing');
+}
+
+if (!resend && !transporter) {
+  console.log('ℹ️ No email provider configured. Real emails will fail. (Render blocks SMTP)');
 }
 
 // Twilio SMS Configuration
@@ -40,40 +58,72 @@ if (config.twilioAccountSid && config.twilioAuthToken && config.twilioAccountSid
 }
 
 async function sendRealEmail(to, otp) {
-  if (!resend) {
-    console.warn('RESEND_API_KEY not set. Cannot send HTTP email.');
-    return false;
+  const cleanTo = to.trim();
+  console.log(`[Email] Attempting to send OTP to: "${cleanTo}"`);
+  const subject = 'Verify your HealthClo Account';
+  const html = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+      <h2 style="color: #2563eb;">Welcome to HealthClo!</h2>
+      <p>Please use the verification code below to complete your registration:</p>
+      <div style="font-size: 32px; font-weight: bold; background: #f0f7ff; padding: 20px; text-align: center; border-radius: 8px; color: #1e40af; letter-spacing: 5px;">
+        ${otp}
+      </div>
+      <p style="margin-top: 20px; color: #64748b; font-size: 14px;">This code will expire in 10 minutes. If you didn't request this, you can safely ignore this email.</p>
+    </div>
+  `;
+
+  // Try Nodemailer first (since it's configured in .env)
+  if (transporter) {
+    try {
+      await transporter.sendMail({
+        from: `"HealthClo Security" <${config.emailUser}>`,
+        to: cleanTo,
+        subject,
+        html
+      });
+      console.log(`✅ [Email] Sent via Nodemailer to ${cleanTo}`);
+      return true;
+    } catch (error) {
+      console.error('--- NODEMAILER ERROR ---');
+      console.error(`Status: FAILED for recipient: ${cleanTo}`);
+      console.error(`Error Code: ${error.code || 'N/A'}`);
+      console.error(`Error Message: ${error.message}`);
+      if (error.code === 'EAUTH') {
+        console.error('Hint: Gmail authentication failed. Check your App Password and ensure 2FA is on.');
+      }
+      // Fall through to Resend if it's also configured
+    }
+  } else {
+    console.log('ℹ️ Nodemailer transporter is not initialized.');
   }
-  
-  try {
-    const { data, error } = await resend.emails.send({
-      from: `HealthClo Security <onboarding@resend.dev>`,
-      to: [to],
-      subject: 'Verify your HealthClo Account',
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-          <h2 style="color: #2563eb;">Welcome to HealthClo!</h2>
-          <p>Please use the verification code below to complete your registration:</p>
-          <div style="font-size: 32px; font-weight: bold; background: #f0f7ff; padding: 20px; text-align: center; border-radius: 8px; color: #1e40af; letter-spacing: 5px;">
-            ${otp}
-          </div>
-          <p style="margin-top: 20px; color: #64748b; font-size: 14px;">This code will expire in 10 minutes. If you didn't request this, you can safely ignore this email.</p>
-        </div>
-      `
-    });
-    
-    if (error) {
-      console.error('--- RESEND ERROR ---');
-      console.error(error);
+
+  // Try Resend as fallback or alternative
+  if (resend) {
+    try {
+      const { data, error } = await resend.emails.send({
+        from: `HealthClo Security <onboarding@resend.dev>`,
+        to: [cleanTo],
+        subject,
+        html
+      });
+      
+      if (error) {
+        console.error('--- RESEND ERROR ---');
+        console.error(error);
+        return false;
+      }
+      
+      console.log(`✅ [Email] Sent via Resend to ${cleanTo}`);
+      return true;
+    } catch (error) {
+      console.error('--- RESEND THROW CATCH ---');
+      console.error(error.message);
       return false;
     }
-    
-    return true;
-  } catch (error) {
-    console.error('--- RESEND THROW CATCH ---');
-    console.error(error.message);
-    return false;
   }
+  
+  console.warn('No email provider (Nodemailer or Resend) is configured.');
+  return false;
 }
 
 async function sendSMS(to, otp) {
@@ -277,7 +327,8 @@ authRoutes.put('/profile', requireAuth, (req, res) => {
 });
 
 authRoutes.post('/send-otp', async (req, res) => {
-  const { email, phone, type } = req.body;
+  const { phone, type } = req.body;
+  const email = req.body.email ? req.body.email.trim() : null;
   const identifier = email || phone;
   if (!identifier) return res.status(400).json({ error: 'Email or phone required' });
   
@@ -317,6 +368,7 @@ authRoutes.post('/send-otp', async (req, res) => {
   const expiresAt = Date.now() + OTP_EXPIRY_MS;
   otpStore.set(identifier, { otp, expires: expiresAt, createdAt: Date.now() });
   
+  
   // Track resend attempts
   otpAttempts.set(identifier, {
     count: (lastAttempt?.count || 0) + 1,
@@ -348,7 +400,7 @@ authRoutes.post('/send-otp', async (req, res) => {
   
   // Disable Trial Mode hints if real credentials (Twilio or Email) are configured
   const isRealSmsActive = !!twilioClient;
-  const isRealEmailActive = !!resend;
+  const isRealEmailActive = !!resend || !!transporter;
 
   if (config.nodeEnv === 'development' && !isRealSmsActive && !isRealEmailActive) {
     response.otp = otp;
@@ -416,5 +468,88 @@ authRoutes.post('/check-otp-status', (req, res) => {
     remaining,
     expiresIn: record.expires
   });
+});
+
+// ============================================================
+//  DELETE ACCOUNT (with password verification)
+// ============================================================
+authRoutes.delete('/delete-account', requireAuth, (req, res) => {
+  try {
+    const { password } = req.body;
+    
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required' });
+    }
+
+    const db = getDb();
+    const user = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.user.id);
+    
+    if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+      return res.status(401).json({ error: 'Invalid password' });
+    }
+    
+    // Delete user and all associated data (cascading)
+    const result = db.prepare('DELETE FROM users WHERE id = ?').run(req.user.id);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ message: 'Account deleted successfully. All associated data has been removed.' });
+  } catch (error) {
+    console.error('Delete Account Error:', error);
+    res.status(500).json({ error: 'Failed to delete account' });
+  }
+});
+
+// ============================================================
+//  CHANGE PASSWORD
+// ============================================================
+authRoutes.post('/change-password', requireAuth, (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current and new passwords are required' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters' });
+    }
+
+    const db = getDb();
+    const user = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.user.id);
+    
+    if (!user || !bcrypt.compareSync(currentPassword, user.password_hash)) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+    
+    const newHash = bcrypt.hashSync(newPassword, 10);
+    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(newHash, req.user.id);
+    
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Change Password Error:', error);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+// ============================================================
+//  OLD DELETE PROFILE (deprecated, kept for compatibility)
+// ============================================================
+authRoutes.delete('/profile', requireAuth, (req, res) => {
+  try {
+    const db = getDb();
+    const result = db.prepare('DELETE FROM users WHERE id = ?').run(req.user.id);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ message: 'Account deleted successfully. All associated data has been purged.' });
+  } catch (error) {
+    console.error('Delete Profile Error:', error);
+    res.status(500).json({ error: 'Failed to delete account' });
+  }
 });
 

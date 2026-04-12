@@ -203,27 +203,22 @@
                             <div class="health-item">
                                 <i class="bi bi-calendar-check"></i>
                                 <span class="label">Previous Visits</span>
-                                <span class="value">8 visits</span>
+                                <span class="value" id="health-visits">— visits</span>
                             </div>
                             <div class="health-item">
                                 <i class="bi bi-droplet-fill" style="color:var(--danger);"></i>
                                 <span class="label">Blood Type</span>
-                                <span class="value">O+</span>
-                            </div>
-                            <div class="health-item">
-                                <i class="bi bi-exclamation-triangle-fill" style="color:var(--warn);"></i>
-                                <span class="label">Allergies</span>
-                                <span class="value">Penicillin</span>
+                                <span class="value" id="health-blood">—</span>
                             </div>
                             <div class="health-item">
                                 <i class="bi bi-clipboard2-check-fill" style="color:var(--secondary);"></i>
                                 <span class="label">Last Test</span>
-                                <span class="value">Cholesterol · Normal</span>
+                                <span class="value" id="health-test">None yet</span>
                             </div>
                             <div class="health-item">
                                 <i class="bi bi-person-badge-fill"></i>
                                 <span class="label">Primary Doctor</span>
-                                <span class="value">Dr. Sarah Johnson</span>
+                                <span class="value" id="health-doctor">Not assigned</span>
                             </div>
                         </div>
 
@@ -538,10 +533,19 @@
                                     <option>AB+</option>
                                 </select>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label">Known Allergies</label>
-                                <input type="text" class="form-control" value="Penicillin">
-                            </div>
+                        </div>
+                        
+                        <!-- Danger Zone -->
+                        <div class="data-table p-4 mt-4" style="border-color: #fee2e2; background: #fffafb;">
+                            <h5 class="mb-3" style="font-weight:700; color: #b91c1c;">
+                                <i class="bi bi-exclamation-octagon-fill"></i> Danger Zone
+                            </h5>
+                            <p style="font-size: .85rem; color: #7f1d1d; margin-bottom: 16px;">
+                                Permanently delete your account and all associated medical records. This action cannot be undone.
+                            </p>
+                            <button class="btn btn-outline-danger btn-sm fw-600" onclick="deleteAccount()" id="deleteAccountBtn">
+                                <i class="bi bi-trash3-fill"></i> Delete My Account
+                            </button>
                         </div>
                     </div>
                     <div class="col-lg-6">
