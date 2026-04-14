@@ -29,12 +29,15 @@ async function initializeEmailService() {
   if (config.emailUser && config.emailPass) {
     try {
       gmailTransporter = nodemailer.createTransport({
-        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true, // Use SSL
         auth: {
           user: config.emailUser,
           pass: config.emailPass
         },
-        pool: true, // Use pooling for better performance
+        family: 4, // FORCE IPv4
+        pool: true,
         maxConnections: 5,
         maxMessages: 100
       });
@@ -60,7 +63,8 @@ async function initializeEmailService() {
         auth: {
           user: testAccount.user,
           pass: testAccount.pass
-        }
+        },
+        family: 4 // FORCE IPv4
       });
       
       console.log('✅ Ethereal Test Email configured (No API key needed!)');

@@ -21,11 +21,14 @@ async function testGmail() {
   }
   console.log(`\n--- Testing Gmail SMTP (${config.emailUser}) ---`);
   const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
     auth: {
       user: config.emailUser,
       pass: config.emailPass
-    }
+    },
+    family: 4 // Force IPv4
   });
 
   try {
