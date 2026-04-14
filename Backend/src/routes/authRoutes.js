@@ -60,20 +60,6 @@ async function initializeEmailService() {
   }
 }
 
-  // LOG AUDIT REPORT
-  console.log('----------------------------------------------------');
-  console.log(' COMMUNICATION SERVICE AUDIT');
-  console.log('----------------------------------------------------');
-  Object.entries(audit).forEach(([service, info]) => {
-    console.log(`${service.toUpperCase().padEnd(10)}: ${info.status.padEnd(12)} | ${info.reason}`);
-  });
-  console.log('----------------------------------------------------');
-  
-  if (audit.gmail.status.includes('❌') && audit.resend.status.includes('❌')) {
-    console.log('⚠️ [WARNING] No production email services are active. Check Render env vars!');
-  }
-  console.log('');
-}
 
 // Twilio SMS Configuration
 let twilioClient = null;
