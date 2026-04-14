@@ -137,13 +137,14 @@ async function sendRealEmail(to, otp) {
   if (resend) {
     try {
       console.log(`[📧] Attempting Resend API (fallback)...`);
-      const verifiedEmail = config.resendVerifiedEmail || '24r21a05a4@mlrit.ac.in';
+      // In trial mode, Resend requires 'onboarding@resend.dev' or a verified email
+      const fromEmail = config.resendVerifiedEmail || 'onboarding@resend.dev';
       const { data, error } = await resend.emails.send({
-        from: `HealthClo <${verifiedEmail}>`,
+        from: `HealthClo <${fromEmail}>`,
         to: cleanTo,
         subject,
         html,
-        replyTo: verifiedEmail
+        replyTo: fromEmail
       });
       
       if (!error) {

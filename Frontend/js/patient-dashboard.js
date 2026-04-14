@@ -966,6 +966,7 @@ document.addEventListener('DOMContentLoaded', function () {
     populateUserName(user);
     initProfile();
     loadStats();
+    loadRecentActivity();
     initDoctorSearch();
 
     // Wire navigation
@@ -988,3 +989,80 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 });
+
+/**
+ * Loads recent records and consent grants to populate the activity feed.
+ */
+async function loadRecentActivity() {
+    const body = document.getElementById('recent-activity-body');
+    const msg = document.getElementById('no-activity-message');
+    if (!body) return;
+
+    try {
+        const [recRes, conRes] = await Promise.all([
+            fetch(`${API}/records/patients/me`, { headers: authHeaders() }),
+            fetch(`${API}/consents/mine`, { headers: authHeaders() })
+        ]);
+
+        let activities = [];
+
+        if (recRes.ok) {
+            const { records } = await recRes.json();
+            records.forEach(r => {
+                activities.push({
+                    type: 'record',
+                    title: `${r.department} Report Uploaded`,
+                    dept: r.department,
+                    date: new Date(r.created_at),
+                    status: 'Secured',
+                    icon: 'bi-file-earmark-fill',
+                    color: 'var(--primary)',
+                    badge: `badge-${r.department.toLowerCase()}`
+                });
+            });
+        }
+
+        if (conRes.ok) {
+            const { consents } = await conRes.json();
+            consents.forEach(c => {
+                activities.push({
+                    type: 'consent',
+                    title: `Dr. ${c.doctor_first_name} ${c.doctor_last_name} Access`,
+                    dept: 'Permission',
+                    date: new Date(c.created_at),
+                    status: c.revoked_at ? 'Revoked' : 'Granted',
+                    icon: 'bi-person-check-fill',
+                    color: 'var(--secondary)',
+                    badge: 'badge-general'
+                });
+            });
+        }
+
+        // Sort by date descending
+        activities.sort((a, b) => b.date - a.date);
+        
+        // Take top 5
+        const recent = activities.slice(0, 5);
+
+        if (recent.length === 0) {
+            body.innerHTML = '';
+            if (msg) msg.style.display = 'block';
+            return;
+        }
+
+        if (msg) msg.style.display = 'none';
+        body.innerHTML = recent.map(a => `
+            <tr>
+                <td><i class="bi ${a.icon}" style="color:${a.color};"></i> ${a.title}</td>
+                <td><span class="badge-dept ${a.badge}">${a.dept}</span></td>
+                <td>${a.date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                <td><span class="badge ${a.status === 'Secured' || a.status === 'Granted' ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'} fw-600 rounded-pill">
+                    ${a.status === 'Secured' ? '✓ ' : ''}${a.status}
+                </span></td>
+            </tr>
+        `).join('');
+
+    } catch (e) {
+        console.warn('Recent activity load error:', e);
+    }
+}

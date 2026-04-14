@@ -158,41 +158,14 @@
                                         <th>Status</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    <tr>
-                                        <td><i class="bi bi-file-earmark-fill" style="color:var(--primary);"></i>
-                                            Cardiology Report Uploaded</td>
-                                        <td><span class="badge-dept badge-cardio">Cardiology</span></td>
-                                        <td>Feb 21, 2026</td>
-                                        <td><span class="badge bg-success-subtle text-success fw-600 rounded-pill">✓
-                                                Secured</span></td>
-                                    </tr>
-                                    <tr>
-                                        <td><i class="bi bi-person-check-fill" style="color:var(--secondary);"></i> Dr.
-                                            Sarah Johnson Access</td>
-                                        <td><span class="badge-dept badge-general">Permission</span></td>
-                                        <td>Feb 20, 2026</td>
-                                        <td><span class="badge bg-success-subtle text-success fw-600 rounded-pill">✓
-                                                Granted</span></td>
-                                    </tr>
-                                    <tr>
-                                        <td><i class="bi bi-file-earmark-fill" style="color:var(--primary);"></i> X-Ray
-                                            Report Uploaded</td>
-                                        <td><span class="badge-dept badge-ortho">Orthopedics</span></td>
-                                        <td>Feb 18, 2026</td>
-                                        <td><span class="badge bg-success-subtle text-success fw-600 rounded-pill">✓
-                                                Secured</span></td>
-                                    </tr>
-                                    <tr>
-                                        <td><i class="bi bi-robot" style="color:var(--accent);"></i> AI Classification
-                                            Run</td>
-                                        <td><span class="badge-dept badge-neuro">Neurology</span></td>
-                                        <td>Feb 15, 2026</td>
-                                        <td><span class="badge bg-primary-subtle text-primary fw-600 rounded-pill">✓
-                                                Classified</span></td>
-                                    </tr>
+                                <tbody id="recent-activity-body">
+                                    <!-- Populated by JS -->
                                 </tbody>
                             </table>
+                            <div id="no-activity-message" style="display:none; text-align:center; padding: 40px 20px; color: var(--text-muted);">
+                                <i class="bi bi-clock-history" style="font-size: 2rem; display: block; margin-bottom: 10px; opacity: 0.5;"></i>
+                                No recent activity yet.
+                            </div>
                         </div>
                     </div>
 
