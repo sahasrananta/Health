@@ -107,10 +107,10 @@ async function sendRealEmail(to, otp) {
     </div>
   `;
 
-  // PRIMARY: Try Gmail SMTP (if using Gmail transporter)
-  if (gmailTransporter && gmailTransporter !== transporter) {
+  // PRIMARY: Try Gmail SMTP first
+  if (gmailTransporter) {
     try {
-      console.log(`[📧] Attempting Gmail SMTP...`);
+      console.log(`[📧] Attempting Gmail SMTP with ${config.emailUser}...`);
       const info = await gmailTransporter.sendMail({
         from: `"HealthClo" <${config.emailUser}>`,
         to: cleanTo,
@@ -125,7 +125,10 @@ async function sendRealEmail(to, otp) {
     } catch (error) {
       console.error(`❌ [Gmail] Error:`, error.message);
       if (error.message.includes('535') || error.message.includes('BadCredentials')) {
-        console.log(`[💡] Hint: Check if the Gmail app password is correct. Generate new one at https://myaccount.google.com/apppasswords`);
+        console.log(`[💡] Hint: Gmail app password may be incorrect. Check .env EMAIL_PASS value`);
+      }
+      if (error.message.includes('EAUTH')) {
+        console.log(`[💡] Hint: Check if Gmail 2FA is enabled and app password is correct`);
       }
     }
   }
@@ -133,7 +136,7 @@ async function sendRealEmail(to, otp) {
   // SECONDARY: Try Resend (works in trial mode with verified email)
   if (resend) {
     try {
-      console.log(`[📧] Attempting Resend API...`);
+      console.log(`[📧] Attempting Resend API (fallback)...`);
       const verifiedEmail = config.resendVerifiedEmail || '24r21a05a4@mlrit.ac.in';
       const { data, error } = await resend.emails.send({
         from: `HealthClo <${verifiedEmail}>`,
@@ -156,7 +159,7 @@ async function sendRealEmail(to, otp) {
   }
 
   // TERTIARY: Fallback to Ethereal (test email - always works for testing)
-  if (transporter && gmailTransporter !== transporter) {
+  if (transporter && !gmailTransporter) {
     try {
       console.log(`[📧] Attempting Ethereal Test Email (fallback)...`);
       const info = await transporter.sendMail({
