@@ -24,35 +24,50 @@ let transporter = null;
 let gmailTransporter = null;
 
 // Create Ethereal test account (free, no signup needed)
+// Create Ethereal test account (free, no signup needed)
 async function initializeEmailService() {
-  // Try Gmail SMTP first (using 'gmail' service config)
+  console.log('\n🔍 [System Audit] Initializing Communication Services...');
+  
+  const audit = {
+    gmail: { status: '❌ DISABLED', reason: 'Missing credentials' },
+    resend: { status: '❌ DISABLED', reason: 'Missing API Key' },
+    twilio: { status: '❌ DISABLED', reason: 'Missing SID/Token' },
+    ethereal: { status: '🟡 WAITING', reason: 'Fallback only' }
+  };
+
+  // 1. GMAIL
   if (config.emailUser && config.emailPass) {
     try {
       gmailTransporter = nodemailer.createTransport({
         host: 'smtp.gmail.com',
         port: 465,
-        secure: true, // Use SSL
-        auth: {
-          user: config.emailUser,
-          pass: config.emailPass
-        },
-        family: 4, // FORCE IPv4
-        pool: true,
-        maxConnections: 5,
-        maxMessages: 100
+        secure: true,
+        auth: { user: config.emailUser, pass: config.emailPass },
+        family: 4,
+        pool: true
       });
-      
-      // Verification check on startup
       await gmailTransporter.verify();
       transporter = gmailTransporter;
-      console.log('✅ Gmail SMTP verified and ready for:', config.emailUser);
+      audit.gmail = { status: '✅ ENABLED', reason: `Verified for ${config.emailUser}` };
     } catch (error) {
-      console.error('❌ Gmail SMTP setup failed:', error.message);
+      audit.gmail = { status: '❌ FAILED', reason: error.message };
       gmailTransporter = null;
     }
   }
 
-  // Try Ethereal test account if Gmail not available
+  // 2. RESEND
+  if (config.resendApiKey) {
+    resend = new Resend(config.resendApiKey);
+    audit.resend = { status: '✅ ENABLED', reason: 'API Key configured' };
+  }
+
+  // 3. TWILIO
+  if (config.twilioAccountSid && config.twilioAuthToken) {
+    audit.twilio = { status: '✅ ENABLED', reason: 'Credentials found' };
+    // twilioClient is initialized below in its own logic (keeping compatibility)
+  }
+
+  // 4. ETHEREAL (Fallback)
   if (!transporter) {
     try {
       const testAccount = await nodemailer.createTestAccount();
@@ -60,38 +75,31 @@ async function initializeEmailService() {
         host: 'smtp.ethereal.email',
         port: 587,
         secure: false,
-        auth: {
-          user: testAccount.user,
-          pass: testAccount.pass
-        },
-        family: 4 // FORCE IPv4
+        auth: { user: testAccount.user, pass: testAccount.pass },
+        family: 4
       });
-      
-      console.log('✅ Ethereal Test Email configured (No API key needed!)');
-      console.log(`📧 Test Account: ${testAccount.user}`);
-      console.log('📧 Link to test emails will be displayed after sending each email');
+      audit.ethereal = { status: '✅ ACTIVE', reason: `Test mode active (${testAccount.user})` };
     } catch (error) {
-      console.error('⚠️ Failed to initialize Ethereal:', error.message);
+      audit.ethereal = { status: '❌ FAILED', reason: error.message };
       transporter = null;
     }
+  } else {
+    audit.ethereal = { status: '💤 STANDBY', reason: 'Gmail is primary' };
   }
 
-  // Try Resend as secondary if configured
-  if (config.resendApiKey) {
-    resend = new Resend(config.resendApiKey);
+  // LOG AUDIT REPORT
+  console.log('----------------------------------------------------');
+  console.log(' COMMUNICATION SERVICE AUDIT');
+  console.log('----------------------------------------------------');
+  Object.entries(audit).forEach(([service, info]) => {
+    console.log(`${service.toUpperCase().padEnd(10)}: ${info.status.padEnd(12)} | ${info.reason}`);
+  });
+  console.log('----------------------------------------------------');
+  
+  if (audit.gmail.status.includes('❌') && audit.resend.status.includes('❌')) {
+    console.log('⚠️ [WARNING] No production email services are active. Check Render env vars!');
   }
-
-  // --- STARTUP AUDIT LOG ---
-  console.log('\n================================================');
-  console.log('📬 EMAIL SERVICE DIAGNOSTIC AUDIT');
-  console.log('------------------------------------------------');
-  console.log(`GMAIL SMTP: ${gmailTransporter ? '✅ ENABLED' : '❌ DISABLED (Check EMAIL_USER/PASS)'}`);
-  console.log(`RESEND API: ${resend ? '✅ ENABLED' : '❌ DISABLED (Check RESEND_API_KEY)'}`);
-  console.log(`ETHEREAL:   ${transporter && !gmailTransporter ? '✅ ENABLED (Test Mode)' : 'ℹ️ STANDBY'}`);
-  if (config.nodeEnv === 'development') {
-    console.log(`TEST MODE:  ✅ ON (OTP will log to console)`);
-  }
-  console.log('================================================\n');
+  console.log('');
 }
 
 // Twilio SMS Configuration
