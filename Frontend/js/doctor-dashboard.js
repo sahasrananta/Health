@@ -73,13 +73,31 @@ async function initDashboard() {
         if (!res.ok) return;
         const { overview } = await res.json();
 
-        // Update stats grid (matched to IDs if available, else by order)
-        const stats = document.querySelectorAll('.stat-card .stat-value');
-        if (stats.length >= 4) {
-            stats[0].textContent = overview.totalPatients || 0;
-            stats[1].textContent = overview.totalRecords || 0;
-            stats[2].textContent = overview.activeConsents || 0;
-            // Stat 3 for appointments today (can be updated from appointments call)
+        // Update stats grid
+        const totalPatients = document.getElementById('stat-total-patients');
+        const totalRecords = document.getElementById('stat-total-records');
+        const activeConsents = document.getElementById('stat-active-consents');
+        
+        if (totalPatients) totalPatients.textContent = overview.totalPatients || 0;
+        if (totalRecords) totalRecords.textContent = overview.totalRecords || 0;
+        if (activeConsents) activeConsents.textContent = overview.activeConsents || 0;
+
+        // Populate Recent Patients table in Overview
+        const recentTbody = document.getElementById('recent-patients-tbody');
+        if (recentTbody && overview.recentPatients && overview.recentPatients.length > 0) {
+            recentTbody.innerHTML = overview.recentPatients.map(p => `
+                <tr>
+                    <td><i class="bi bi-person-circle me-2 text-primary"></i> ${p.first_name} ${p.last_name}</td>
+                    <td><span class="badge badge-cardio">Cardiology</span></td>
+                    <td>${new Date(p.last_visit || Date.now()).toLocaleDateString()}</td>
+                    <td><span class="badge bg-success">Active</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-primary-sm" onclick="viewPatientRecords('${p.id}')">
+                            <i class="bi bi-file-earmark"></i> View Records
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
         }
 
         // Show verification warning if not verified
@@ -173,10 +191,12 @@ async function loadAppointments() {
 
         if (appointments.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No appointments found</td></tr>';
+            const overviewTbody = document.getElementById('appointments-overview-tbody');
+            if (overviewTbody) overviewTbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No upcoming appointments</td></tr>';
             return;
         }
 
-        tbody.innerHTML = appointments.map(a => {
+        const appointmentRows = appointments.map(a => {
             const statusClass = { scheduled: 'bg-info', completed: 'bg-success', cancelled: 'bg-danger' }[a.status] || 'bg-secondary';
             return `
                 <tr>
@@ -196,6 +216,25 @@ async function loadAppointments() {
                 </tr>
             `;
         }).join('');
+
+        tbody.innerHTML = appointmentRows;
+        
+        // Also update overview table with upcoming only
+        const overviewTbody = document.getElementById('appointments-overview-tbody');
+        if (overviewTbody) {
+            overviewTbody.innerHTML = appointments.slice(0, 5).map(a => {
+                const statusClass = { scheduled: 'bg-info', completed: 'bg-success', cancelled: 'bg-danger' }[a.status] || 'bg-secondary';
+                return `
+                    <tr>
+                        <td>${new Date(a.starts_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</td>
+                        <td>${a.patient_first_name} ${a.patient_last_name}</td>
+                        <td>${a.reason || 'Checkup'}</td>
+                        <td><span class="badge ${statusClass}">${a.status}</span></td>
+                        <td><button class="btn btn-sm btn-primary-sm" onclick="showSection('appointments')">View</button></td>
+                    </tr>
+                `;
+            }).join('');
+        }
     } catch (e) {
         console.error('Appointments load error:', e);
     }
@@ -233,9 +272,18 @@ function setupNavigation() {
                 selected.style.display = 'block';
                 if (section === 'patients') loadPatients();
                 if (section === 'appointments') loadAppointments();
+                if (section === 'overview') {
+                    initDashboard();
+                    loadAppointments(); // Load to update overview table
+                }
             }
         });
     });
+}
+
+function showSection(section) {
+    const navLink = document.querySelector(`.sidebar-nav .nav-link[data-section="${section}"]`);
+    if (navLink) navLink.click();
 }
 
 function viewPatientRecords(patientId) {

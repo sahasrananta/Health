@@ -97,22 +97,19 @@ function migrate(db) {
   // Seed default admin if no admin exists
   const adminExists = db.prepare("SELECT 1 FROM users WHERE role = 'admin'").get();
   if (!adminExists) {
-    // Generate a secure random password for the default admin account
-    const defaultAdminPassword = process.env.ADMIN_PASSWORD || 
-      randomBytes(12).toString('hex');
+    const defaultAdminPassword = config.adminPassword || randomBytes(12).toString('hex');
     const passwordHash = bcrypt.hashSync(defaultAdminPassword, 10);
     const now = new Date().toISOString();
     db.prepare(`
       INSERT INTO users (id, role, email, phone, password_hash, first_name, last_name, is_verified, created_at)
       VALUES (?, 'admin', 'admin@healthclo.com', NULL, ?, 'System', 'Admin', 1, ?)
     `).run(randomUUID(), passwordHash, now);
-    console.log('✅ Default admin seeded');
-    if (!process.env.ADMIN_PASSWORD) {
-      console.log('⚠️ IMPORTANT: Use this credential to login (then change password immediately):');
-      console.log(`   Email: admin@healthclo.com`);
-      console.log(`   Temporary Password: ${defaultAdminPassword}`);
-      console.log('⚠️ Set ADMIN_PASSWORD env var to use a custom password instead');
-    }
+    console.log('✅ Default admin seeded (admin@healthclo.com)');
+  } else if (config.adminPassword) {
+    // If admin exists and a custom password is provided, ensure it's up to date
+    const passwordHash = bcrypt.hashSync(config.adminPassword, 10);
+    db.prepare("UPDATE users SET password_hash = ? WHERE role = 'admin' AND email = 'admin@healthclo.com'").run(passwordHash);
+    console.log('✅ Admin password synchronized with environment configuration');
   }
 }
 

@@ -49,23 +49,23 @@
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-label">Total Patients</div>
-                    <div class="stat-value">24</div>
+                    <div id="stat-total-patients" class="stat-value">0</div>
                     <div class="stat-update">Under my care</div>
                 </div>
                 <div class="stat-card success">
                     <div class="stat-label">Medical Records</div>
-                    <div class="stat-value">87</div>
-                    <div class="stat-update">Cardiology files</div>
+                    <div id="stat-total-records" class="stat-value">0</div>
+                    <div class="stat-update">Across all departments</div>
                 </div>
                 <div class="stat-card warning">
-                    <div class="stat-label">Pending Reviews</div>
-                    <div class="stat-value">5</div>
-                    <div class="stat-update">Awaiting action</div>
+                    <div class="stat-label">Active Consents</div>
+                    <div id="stat-active-consents" class="stat-value">0</div>
+                    <div class="stat-update">Awaiting review</div>
                 </div>
                 <div class="stat-card info">
                     <div class="stat-label">Appointments Today</div>
-                    <div class="stat-value">8</div>
-                    <div class="stat-update">Scheduled consultations</div>
+                    <div id="stat-appointments-today" class="stat-value">0</div>
+                    <div class="stat-update">Latest schedule</div>
                 </div>
             </div>
 
@@ -81,27 +81,12 @@
                             <th>Action</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="recent-patients-tbody">
                         <tr>
-                            <td>John Doe</td>
-                            <td><span class="badge badge-cardio">Cardiology</span></td>
-                            <td>2026-02-20</td>
-                            <td><span class="badge bg-success">Stable</span></td>
-                            <td><button class="btn btn-sm btn-primary-sm"><i class="bi bi-file-earmark"></i> View Records</button></td>
-                        </tr>
-                        <tr>
-                            <td>Jane Smith</td>
-                            <td><span class="badge badge-cardio">Cardiology</span></td>
-                            <td>2026-02-18</td>
-                            <td><span class="badge bg-warning">Follow-up Needed</span></td>
-                            <td><button class="btn btn-sm btn-primary-sm"><i class="bi bi-file-earmark"></i> View Records</button></td>
-                        </tr>
-                        <tr>
-                            <td>Robert Johnson</td>
-                            <td><span class="badge badge-cardio">Cardiology</span></td>
-                            <td>2026-02-15</td>
-                            <td><span class="badge bg-success">Healthy</span></td>
-                            <td><button class="btn btn-sm btn-primary-sm"><i class="bi bi-file-earmark"></i> View Records</button></td>
+                            <td colspan="5" class="text-center py-5">
+                                <i class="bi bi-person-slash" style="font-size: 2rem; color: #ccc;"></i>
+                                <p class="mt-2 text-muted">No recent patient activity</p>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -179,20 +164,9 @@
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="appointments-overview-tbody">
                         <tr>
-                            <td>2026-02-24 09:00 AM</td>
-                            <td>John Doe</td>
-                            <td>Follow-up</td>
-                            <td><span class="badge bg-success">Confirmed</span></td>
-                            <td><button class="btn btn-sm btn-primary-sm">View</button></td>
-                        </tr>
-                        <tr>
-                            <td>2026-02-24 10:30 AM</td>
-                            <td>Sarah Wilson</td>
-                            <td>Initial Consultation</td>
-                            <td><span class="badge bg-warning">Pending</span></td>
-                            <td><button class="btn btn-sm btn-primary-sm">View</button></td>
+                            <td colspan="5" class="text-center py-4">No upcoming appointments</td>
                         </tr>
                     </tbody>
                 </table>
