@@ -35,6 +35,7 @@ export const config = {
   resendVerifiedEmail: process.env.RESEND_VERIFIED_EMAIL || '24r21a05a4@mlrit.ac.in',
   twilioAccountSid: process.env.TWILIO_ACCOUNT_SID,
   twilioAuthToken: process.env.TWILIO_AUTH_TOKEN,
-  twilioPhoneNumber: process.env.TWILIO_PHONE_NUMBER
+  twilioPhoneNumber: process.env.TWILIO_PHONE_NUMBER,
+  adminPassword: process.env.ADMIN_PASSWORD
 };
 
