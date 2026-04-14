@@ -107,81 +107,83 @@ async function sendRealEmail(to, otp) {
     </div>
   `;
 
-  // PRIMARY: Try Gmail SMTP first
-  if (gmailTransporter) {
-    try {
-      console.log(`[📧] Attempting Gmail SMTP with ${config.emailUser}...`);
-      const info = await gmailTransporter.sendMail({
-        from: `"HealthClo" <${config.emailUser}>`,
-        to: cleanTo,
-        subject,
-        html,
-        replyTo: config.emailUser
-      });
-      
-      console.log(`✅ [Email] OTP sent successfully via Gmail to ${cleanTo}`);
-      console.log(`[📊] Gmail Status: Delivered | Message ID: ${info.messageId}`);
-      return true;
-    } catch (error) {
-      console.error(`❌ [Gmail] Error:`, error.message);
-      if (error.message.includes('535') || error.message.includes('BadCredentials')) {
-        console.log(`[💡] Hint: Gmail app password may be incorrect. Check .env EMAIL_PASS value`);
-      }
-      if (error.message.includes('EAUTH')) {
-        console.log(`[💡] Hint: Check if Gmail 2FA is enabled and app password is correct`);
-      }
-    }
-  }
+  // HELPER: Timeout promise
+  const timeout = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error('Email service timeout')), ms));
 
-  // SECONDARY: Try Resend (works in trial mode with verified email)
-  if (resend) {
-    try {
-      console.log(`[📧] Attempting Resend API (fallback)...`);
-      // In trial mode, Resend requires 'onboarding@resend.dev' or a verified email
-      const fromEmail = config.resendVerifiedEmail || 'onboarding@resend.dev';
-      const { data, error } = await resend.emails.send({
-        from: `HealthClo <${fromEmail}>`,
-        to: cleanTo,
-        subject,
-        html,
-        replyTo: fromEmail
-      });
-      
-      if (!error) {
-        console.log(`✅ [Email] OTP sent successfully via Resend to ${cleanTo}`);
-        console.log(`[📊] Resend Status: Delivered`);
+  try {
+    // PRIMARY: Try Gmail SMTP
+    if (gmailTransporter) {
+      try {
+        console.log(`[📧] Attempting Gmail SMTP...`);
+        const info = await Promise.race([
+          gmailTransporter.sendMail({
+            from: `"HealthClo" <${config.emailUser}>`,
+            to: cleanTo,
+            subject,
+            html,
+            replyTo: config.emailUser
+          }),
+          timeout(8000) // 8s timeout
+        ]);
+        
+        console.log(`✅ [Email] Sent via Gmail to ${cleanTo}`);
         return true;
-      } else {
-        console.error(`⚠️ [Resend] Error:`, error);
+      } catch (err) {
+        console.error(`❌ [Gmail] Error:`, err.message);
       }
-    } catch (error) {
-      console.error(`❌ [Resend] Exception:`, error.message);
     }
+
+    // SECONDARY: Try Resend
+    if (resend) {
+      try {
+        console.log(`[📧] Attempting Resend API...`);
+        const fromEmail = config.resendVerifiedEmail || 'onboarding@resend.dev';
+        const { data, error } = await Promise.race([
+          resend.emails.send({
+            from: `HealthClo <${fromEmail}>`,
+            to: cleanTo,
+            subject,
+            html,
+            replyTo: fromEmail
+          }),
+          timeout(8000)
+        ]);
+        
+        if (!error) {
+          console.log(`✅ [Email] Sent via Resend to ${cleanTo}`);
+          return true;
+        } else {
+          console.error(`⚠️ [Resend] Error:`, error);
+        }
+      } catch (err) {
+        console.error(`❌ [Resend] Error:`, err.message);
+      }
+    }
+
+    // TERTIARY: Fallback to Ethereal
+    if (transporter && !gmailTransporter) {
+      try {
+        console.log(`[📧] Attempting Ethereal...`);
+        const info = await Promise.race([
+          transporter.sendMail({
+            from: '"HealthClo Security" <noreply@healthclo.test>',
+            to: cleanTo,
+            subject,
+            html
+          }),
+          timeout(5000)
+        ]);
+        console.log(`✅ [Email] Sent via Ethereal to ${cleanTo}`);
+        return true;
+      } catch (err) {
+        console.error(`⚠️ [Ethereal] Error:`, err.message);
+      }
+    }
+  } catch (globalErr) {
+    console.error(`❌ [Email Global] Fatal error during delivery:`, globalErr.message);
   }
 
-  // TERTIARY: Fallback to Ethereal (test email - always works for testing)
-  if (transporter && !gmailTransporter) {
-    try {
-      console.log(`[📧] Attempting Ethereal Test Email (fallback)...`);
-      const info = await transporter.sendMail({
-        from: '"HealthClo Security" <noreply@healthclo.test>',
-        to: cleanTo,
-        subject,
-        html
-      });
-      
-      console.log(`✅ [Email] OTP sent via Ethereal Test Email to ${cleanTo}`);
-      const testUrl = nodemailer.getTestMessageUrl(info);
-      if (testUrl) {
-        console.log(`📧 VIEW EMAIL: ${testUrl}`);
-      }
-      return true;
-    } catch (error) {
-      console.error(`⚠️ [Ethereal] Error:`, error.message);
-    }
-  }
-
-  console.error(`❌ [Email] No email provider available!`);
+  console.error(`❌ [Email] Delivery failed for ${cleanTo}`);
   return false;
 }
 
@@ -417,8 +419,8 @@ authRoutes.post('/send-otp', async (req, res) => {
   
   const db = getDb();
   
-  // Validation based on type (login or register)
-  if (type === 'login') {
+  // Validation based on type
+  if (type === 'login' || type === 'reset') {
     const user = email 
       ? db.prepare('SELECT 1 FROM users WHERE email = ?').get(email)
       : db.prepare('SELECT 1 FROM users WHERE phone = ?').get(phone);

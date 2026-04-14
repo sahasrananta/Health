@@ -942,25 +942,33 @@ async function sendResetLink() {
             showToast('Please enter a valid email address', 'error');
             return;
         }
-        if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+        if (btn) { 
+            btn.disabled = true; 
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Sending...';
+        }
         try {
             const res = await fetch('/api/auth/send-otp', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: resetEmail.value })
+                body: JSON.stringify({ email: resetEmail.value, type: 'reset' })
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok) {
                 showToast('A verification code has been sent to your email. Use it to log in and change your password.', 'success');
-                const modal = bootstrap.Modal.getInstance(document.getElementById('forgotPasswordModal'));
+                const modalEl = document.getElementById('forgotPasswordModal');
+                const modal = bootstrap.Modal.getInstance(modalEl);
                 if (modal) modal.hide();
             } else {
                 showToast(data.error || 'Failed to send reset code', 'error');
             }
         } catch (e) {
+            console.error('Password reset network error:', e);
             showToast('Network error. Please try again.', 'error');
         } finally {
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-send-fill"></i> Send Reset Link'; }
+            if (btn) { 
+                btn.disabled = false; 
+                btn.innerHTML = '<i class="bi bi-send-fill"></i> Send Reset Link'; 
+            }
         }
     } else {
         if (!resetPhone || !validatePhone(resetPhone.value)) {
