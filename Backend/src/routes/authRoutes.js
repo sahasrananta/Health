@@ -25,67 +25,40 @@ let gmailTransporter = null;
 
 // Create Ethereal test account (free, no signup needed)
 // Create Ethereal test account (free, no signup needed)
+// Create Ethereal test account (free, no signup needed)
 async function initializeEmailService() {
   console.log('\n🔍 [System Audit] Initializing Communication Services...');
   
   const audit = {
-    gmail: { status: '❌ DISABLED', reason: 'Missing credentials' },
     resend: { status: '❌ DISABLED', reason: 'Missing API Key' },
     twilio: { status: '❌ DISABLED', reason: 'Missing SID/Token' },
-    ethereal: { status: '🟡 WAITING', reason: 'Fallback only' }
+    smtp: { status: '🚫 BLOCKED', reason: 'SMTP disabled (unsupported on Render)' }
   };
 
-  // 1. GMAIL
-  if (config.emailUser && config.emailPass) {
-    try {
-      gmailTransporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 587,
-        secure: false, // Use STARTTLS
-        auth: { user: config.emailUser, pass: config.emailPass },
-        family: 4,
-        pool: true
-      });
-      await gmailTransporter.verify();
-      transporter = gmailTransporter;
-      audit.gmail = { status: '✅ ENABLED', reason: `Verified for ${config.emailUser}` };
-    } catch (error) {
-      audit.gmail = { status: '❌ FAILED', reason: error.message };
-      gmailTransporter = null;
-    }
-  }
-
-  // 2. RESEND
+  // 1. RESEND (API-based, safe for Render)
   if (config.resendApiKey) {
     resend = new Resend(config.resendApiKey);
     audit.resend = { status: '✅ ENABLED', reason: 'API Key configured' };
   }
 
-  // 3. TWILIO
+  // 2. TWILIO
   if (config.twilioAccountSid && config.twilioAuthToken) {
     audit.twilio = { status: '✅ ENABLED', reason: 'Credentials found' };
-    // twilioClient is initialized below in its own logic (keeping compatibility)
   }
 
-  // 4. ETHEREAL (Fallback)
-  if (!transporter) {
-    try {
-      const testAccount = await nodemailer.createTestAccount();
-      transporter = nodemailer.createTransport({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        secure: false,
-        auth: { user: testAccount.user, pass: testAccount.pass },
-        family: 4
-      });
-      audit.ethereal = { status: '✅ ACTIVE', reason: `Test mode active (${testAccount.user})` };
-    } catch (error) {
-      audit.ethereal = { status: '❌ FAILED', reason: error.message };
-      transporter = null;
-    }
-  } else {
-    audit.ethereal = { status: '💤 STANDBY', reason: 'Gmail is primary' };
+  // LOG AUDIT REPORT
+  console.log('----------------------------------------------------');
+  console.log(' COMMUNICATION SERVICE AUDIT');
+  console.log('----------------------------------------------------');
+  Object.entries(audit).forEach(([service, info]) => {
+    console.log(`${service.toUpperCase().padEnd(10)}: ${info.status.padEnd(12)} | ${info.reason}`);
+  });
+  console.log('----------------------------------------------------');
+  
+  if (config.nodeEnv === 'development' && audit.resend.status.includes('❌')) {
+    console.log('💡 [TRIAL MODE] No Resend API key found. System will fallback to local UI notification for OTPs.');
   }
+}
 
   // LOG AUDIT REPORT
   console.log('----------------------------------------------------');
@@ -117,7 +90,7 @@ if (config.twilioAccountSid && config.twilioAuthToken && config.twilioAccountSid
 
 async function sendRealEmail(to, otp) {
   const cleanTo = to.trim();
-  console.log(`\n[📧 Email OTP] Attempting to send to: "${cleanTo}"`);
+  console.log(`\n[📧 Email OTP] Attempting API delivery for: "${cleanTo}"`);
   
   const subject = 'Your HealthClo Account Verification Code';
   const html = `
@@ -125,11 +98,9 @@ async function sendRealEmail(to, otp) {
       <div style="background: white; border-radius: 8px; padding: 30px; text-align: center;">
         <h2 style="color: #2563eb; margin: 0 0 10px 0; font-size: 24px;">HealthClo Account Verification</h2>
         <p style="color: #64748b; margin: 0 0 30px 0; font-size: 14px;">Your secure verification code is:</p>
-        
         <div style="font-size: 48px; font-weight: bold; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 8px; letter-spacing: 8px; margin: 0 0 30px 0; font-family: 'Courier New', monospace;">
           ${otp}
         </div>
-        
         <p style="color: #94a3b8; font-size: 13px; margin: 0 0 20px 0;">⏱️ This code expires in 10 minutes</p>
         <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
         <p style="color: #64748b; font-size: 12px; margin: 0;">If you didn't request this, please ignore this email.</p>
@@ -140,84 +111,36 @@ async function sendRealEmail(to, otp) {
   // HELPER: Timeout promise
   const timeout = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error('Email service timeout')), ms));
 
-  try {
-    // PRIMARY: Try Gmail SMTP
-    if (gmailTransporter) {
-      try {
-        console.log(`[📧] Attempting Gmail delivery...`);
-        await Promise.race([
-          gmailTransporter.sendMail({
-            from: `"HealthClo" <${config.emailUser}>`,
-            to: cleanTo,
-            subject,
-            html,
-            replyTo: config.emailUser
-          }),
-          timeout(10000) // 10s timeout
-        ]);
-        
-        console.log(`✅ [Email] Delivered via Gmail to ${cleanTo}`);
+  if (resend) {
+    try {
+      console.log(`[📧] Attempting Resend API...`);
+      const fromEmail = config.resendVerifiedEmail || 'onboarding@resend.dev';
+      const { data, error } = await Promise.race([
+        resend.emails.send({
+          from: `HealthClo <${fromEmail}>`,
+          to: cleanTo,
+          subject,
+          html,
+          replyTo: fromEmail
+        }),
+        timeout(10000)
+      ]);
+      
+      if (!error) {
+        console.log(`✅ [Email] Delivered via Resend to ${cleanTo}`);
         return true;
-      } catch (err) {
-        console.error(`❌ [Gmail] Delivery Error:`, err.message);
-        // Continue to fallback
-      }
-    }
-
-    // SECONDARY: Try Resend
-    if (resend) {
-      try {
-        console.log(`[📧] Attempting Resend API fallback...`);
-        const fromEmail = config.resendVerifiedEmail || 'onboarding@resend.dev';
-        const { data, error } = await Promise.race([
-          resend.emails.send({
-            from: `HealthClo <${fromEmail}>`,
-            to: cleanTo,
-            subject,
-            html,
-            replyTo: fromEmail
-          }),
-          timeout(10000)
-        ]);
-        
-        if (error) {
-          console.error(`⚠️ [Resend] API Error:`, error.message || error);
-          if (String(error.message).includes('not verified')) {
-            console.log(`[💡] Hint: Domain ${fromEmail.split('@')[1]} is not verified in Resend.`);
-          }
-        } else {
-          console.log(`✅ [Email] Delivered via Resend to ${cleanTo}`);
-          return true;
+      } else {
+        console.error(`⚠️ [Resend] API Error:`, error.message || error);
+        if (String(error.message).includes('not verified')) {
+          console.log(`[💡] Hint: Domain ${fromEmail.split('@')[1]} is not verified in Resend.`);
         }
-      } catch (err) {
-        console.error(`❌ [Resend] System Error:`, err.message);
       }
+    } catch (err) {
+      console.error(`❌ [Resend] System Error:`, err.message);
     }
-
-    // TERTIARY: Fallback to Ethereal
-    if (transporter && !gmailTransporter) {
-      try {
-        console.log(`[📧] Attempting Ethereal...`);
-        const info = await Promise.race([
-          transporter.sendMail({
-            from: '"HealthClo Security" <noreply@healthclo.test>',
-            to: cleanTo,
-            subject,
-            html
-          }),
-          timeout(5000)
-        ]);
-        console.log(`✅ [Email] Sent via Ethereal to ${cleanTo}`);
-        return true;
-      } catch (err) {
-        console.error(`⚠️ [Ethereal] Error:`, err.message);
-      }
-    }
-  } catch (globalErr) {
-    console.error(`❌ [Email Global] Fatal error during delivery:`, globalErr.message);
   }
 
-  console.error(`❌ [Email] Delivery failed for ${cleanTo}`);
+  process.env.NODE_ENV === 'development' && console.log(`\n============================\n[LOCAL OTP] Code for ${cleanTo}: ${otp}\n============================\n`);
   return false;
 }
 
@@ -517,16 +440,12 @@ authRoutes.post('/send-otp', async (req, res) => {
   // Respond to client
   const response = { message: 'Verification code sent!' };
   
-  // Disable Trial Mode hints if real credentials (Twilio or Email) are configured
-  const isRealSmsActive = !!twilioClient;
-  const isRealEmailActive = !!resend || !!transporter;
-
-  if (config.nodeEnv === 'development' && !isRealSmsActive && !isRealEmailActive) {
+  if (config.nodeEnv === 'development') {
     response.otp = otp;
     response.isTrial = true;
-    console.log(`[OTP] TEST MODE: Generated code ${otp} for ${identifier}`);
-  } else {
-    console.log(`[OTP] Production Mode: Secure code generated for ${identifier}`);
+    if (!sent) {
+      response.warning = 'Email delivery failed. Using local fallback.';
+    }
   }
 
   if (!sent && (email || phone) && config.nodeEnv !== 'development') {

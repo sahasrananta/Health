@@ -278,14 +278,15 @@ async function sendEmailOtp(containerId) {
             // Handle Trial Mode (Development)
             if (data.otp && data.isTrial) {
                 console.log('%c [Trial Mode] Generated OTP: ' + data.otp, 'background: #222; color: #bada55; font-size: 1.2rem; padding: 5px;');
-                showToast(`Trial Mode: Code is ${data.otp}`, 'warning');
+                
+                // Show a more persistent toast for the OTP
+                showToast(`[TEST MODE] Your verification code is: ${data.otp}`, 'warning');
                 
                 const digits = data.otp.split('');
                 const inputs = otpContainer.querySelectorAll('.otp-digit');
                 digits.forEach((digit, i) => {
                     if (inputs[i]) {
                         inputs[i].value = digit;
-                        // For trial mode, we don't auto-verify to let user see it
                     }
                 });
             }
@@ -954,7 +955,19 @@ async function sendResetLink() {
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok) {
-                showToast('A verification code has been sent to your email. Use it to log in and change your password.', 'success');
+                let successMsg = 'A verification code has been sent to your email. Use it to log in and change your password.';
+                
+                // Handle Trial Mode (Development)
+                if (data.otp && data.isTrial) {
+                    successMsg = `[TEST MODE] Verification code generated: ${data.otp}. Use this to verify your identity.`;
+                    console.log('%c [Trial Mode] Reset OTP: ' + data.otp, 'background: #222; color: #bada55; font-size: 1.2rem; padding: 5px;');
+                }
+                
+                showToast(successMsg, data.isTrial ? 'warning' : 'success');
+                if (data.isTrial) {
+                   showToast(`Your code is: ${data.otp}`, 'warning');
+                }
+
                 const modalEl = document.getElementById('forgotPasswordModal');
                 const modal = bootstrap.Modal.getInstance(modalEl);
                 if (modal) modal.hide();
