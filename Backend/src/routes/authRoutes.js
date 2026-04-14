@@ -40,8 +40,8 @@ async function initializeEmailService() {
     try {
       gmailTransporter = nodemailer.createTransport({
         host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
+        port: 587,
+        secure: false, // Use STARTTLS
         auth: { user: config.emailUser, pass: config.emailPass },
         family: 4,
         pool: true
