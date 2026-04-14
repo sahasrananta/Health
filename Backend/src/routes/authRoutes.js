@@ -79,8 +79,19 @@ async function initializeEmailService() {
   // Try Resend as secondary if configured
   if (config.resendApiKey) {
     resend = new Resend(config.resendApiKey);
-    console.log('✅ Resend Email API available as fallback');
   }
+
+  // --- STARTUP AUDIT LOG ---
+  console.log('\n================================================');
+  console.log('📬 EMAIL SERVICE DIAGNOSTIC AUDIT');
+  console.log('------------------------------------------------');
+  console.log(`GMAIL SMTP: ${gmailTransporter ? '✅ ENABLED' : '❌ DISABLED (Check EMAIL_USER/PASS)'}`);
+  console.log(`RESEND API: ${resend ? '✅ ENABLED' : '❌ DISABLED (Check RESEND_API_KEY)'}`);
+  console.log(`ETHEREAL:   ${transporter && !gmailTransporter ? '✅ ENABLED (Test Mode)' : 'ℹ️ STANDBY'}`);
+  if (config.nodeEnv === 'development') {
+    console.log(`TEST MODE:  ✅ ON (OTP will log to console)`);
+  }
+  console.log('================================================\n');
 }
 
 // Twilio SMS Configuration
