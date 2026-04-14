@@ -25,7 +25,7 @@ let gmailTransporter = null;
 
 // Create Ethereal test account (free, no signup needed)
 async function initializeEmailService() {
-  // Try Gmail SMTP first (if credentials provided)
+  // Try Gmail SMTP first (using 'gmail' service config)
   if (config.emailUser && config.emailPass) {
     try {
       gmailTransporter = nodemailer.createTransport({
@@ -33,12 +33,19 @@ async function initializeEmailService() {
         auth: {
           user: config.emailUser,
           pass: config.emailPass
-        }
+        },
+        pool: true, // Use pooling for better performance
+        maxConnections: 5,
+        maxMessages: 100
       });
-      transporter = gmailTransporter; // Set as primary
-      console.log('✅ Gmail SMTP configured for:', config.emailUser);
+      
+      // Verification check on startup
+      await gmailTransporter.verify();
+      transporter = gmailTransporter;
+      console.log('✅ Gmail SMTP verified and ready for:', config.emailUser);
     } catch (error) {
-      console.error('⚠️ Gmail SMTP setup failed:', error.message);
+      console.error('❌ Gmail SMTP setup failed:', error.message);
+      gmailTransporter = null;
     }
   }
 
@@ -114,8 +121,8 @@ async function sendRealEmail(to, otp) {
     // PRIMARY: Try Gmail SMTP
     if (gmailTransporter) {
       try {
-        console.log(`[📧] Attempting Gmail SMTP...`);
-        const info = await Promise.race([
+        console.log(`[📧] Attempting Gmail delivery...`);
+        await Promise.race([
           gmailTransporter.sendMail({
             from: `"HealthClo" <${config.emailUser}>`,
             to: cleanTo,
@@ -123,20 +130,21 @@ async function sendRealEmail(to, otp) {
             html,
             replyTo: config.emailUser
           }),
-          timeout(8000) // 8s timeout
+          timeout(10000) // 10s timeout
         ]);
         
-        console.log(`✅ [Email] Sent via Gmail to ${cleanTo}`);
+        console.log(`✅ [Email] Delivered via Gmail to ${cleanTo}`);
         return true;
       } catch (err) {
-        console.error(`❌ [Gmail] Error:`, err.message);
+        console.error(`❌ [Gmail] Delivery Error:`, err.message);
+        // Continue to fallback
       }
     }
 
     // SECONDARY: Try Resend
     if (resend) {
       try {
-        console.log(`[📧] Attempting Resend API...`);
+        console.log(`[📧] Attempting Resend API fallback...`);
         const fromEmail = config.resendVerifiedEmail || 'onboarding@resend.dev';
         const { data, error } = await Promise.race([
           resend.emails.send({
@@ -146,17 +154,20 @@ async function sendRealEmail(to, otp) {
             html,
             replyTo: fromEmail
           }),
-          timeout(8000)
+          timeout(10000)
         ]);
         
-        if (!error) {
-          console.log(`✅ [Email] Sent via Resend to ${cleanTo}`);
-          return true;
+        if (error) {
+          console.error(`⚠️ [Resend] API Error:`, error.message || error);
+          if (String(error.message).includes('not verified')) {
+            console.log(`[💡] Hint: Domain ${fromEmail.split('@')[1]} is not verified in Resend.`);
+          }
         } else {
-          console.error(`⚠️ [Resend] Error:`, error);
+          console.log(`✅ [Email] Delivered via Resend to ${cleanTo}`);
+          return true;
         }
       } catch (err) {
-        console.error(`❌ [Resend] Error:`, err.message);
+        console.error(`❌ [Resend] System Error:`, err.message);
       }
     }
 
