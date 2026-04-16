@@ -40,11 +40,26 @@ adminRoutes.post('/doctors/:id/verify', requireAuth, requireRole('admin'), (req,
   const { id } = req.params;
   const db = getDb();
   
-  const user = db.prepare('SELECT id, role FROM users WHERE id = ?').get(id);
-  if (!user || user.role !== 'doctor') return res.status(404).json({ error: 'Doctor not found' });
+  console.log(`[Admin Action] Verification request for user: ${id}`);
+  
+  const user = db.prepare('SELECT id, role, is_verified FROM users WHERE id = ?').get(id);
+  if (!user) {
+    console.error(`[Admin Action] Doctor with ID ${id} not found`);
+    return res.status(404).json({ error: 'Doctor not found' });
+  }
+  if (user.role !== 'doctor') {
+    console.error(`[Admin Action] User ${id} is not a doctor (Role: ${user.role})`);
+    return res.status(400).json({ error: 'User is not a doctor' });
+  }
 
-  db.prepare('UPDATE users SET is_verified = 1 WHERE id = ?').run(id);
-  res.json({ message: 'Doctor verified successfully', id });
+  const result = db.prepare('UPDATE users SET is_verified = 1 WHERE id = ?').run(id);
+  console.log(`[Admin Action] Database update result:`, result);
+  
+  res.json({ 
+    message: 'Doctor verified successfully', 
+    id,
+    changes: result.changes 
+  });
 });
 
 // Admin: List all Users (for management)

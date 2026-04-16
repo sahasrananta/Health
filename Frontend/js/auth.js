@@ -1166,6 +1166,11 @@ document.addEventListener('DOMContentLoaded', function () {
 //  SESSION PERSISTENCE
 // ============================================================
 function checkSession() {
+    // If we just logged out, don't auto-redirect back (prevents loop)
+    if (sessionStorage.getItem('loggedOut') === 'true') {
+        return;
+    }
+
     const token = localStorage.getItem('authToken');
     const userStr = localStorage.getItem('currentUser');
     

@@ -95,11 +95,17 @@ function rejectConsent() {
 /**
  * Logout user
  */
-function logout() {
-    if (confirm("Are you sure you want to logout?")) {
-        localStorage.removeItem('classifiedFiles');
-        window.location.href = "index.html";
-    }
+function logout(event) {
+    if (event) event.preventDefault();
+    
+    // Set flag to prevent checkSession from auto-redirecting back
+    sessionStorage.setItem('loggedOut', 'true');
+    
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('classifiedFiles');
+    
+    window.location.href = "../login.html";
 }
 
 /**

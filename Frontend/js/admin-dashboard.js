@@ -89,7 +89,7 @@ async function loadAllUsers() {
 
             let actions = `<button class="btn btn-sm btn-outline-danger" title="Delete User"><i class="bi bi-trash"></i></button>`;
             if (u.role === 'doctor' && !u.is_verified) {
-                actions = `<button class="btn btn-sm btn-success me-2" onclick="verifyDoctor('${u.id}')" title="Verify Doctor"><i class="bi bi-check-circle"></i> Verify</button>` + actions;
+                actions = `<button type="button" class="btn btn-sm btn-success me-2" onclick="verifyDoctor(event, '${u.id}')" title="Verify Doctor"><i class="bi bi-check-circle"></i> Verify</button>` + actions;
             }
 
             return `
@@ -116,25 +116,49 @@ async function loadAllUsers() {
 // ============================================================
 //  DOCTOR VERIFICATION logic
 // ============================================================
-async function verifyDoctor(id) {
-    if (!confirm('Verify this doctor credentials and grant access?')) return;
+async function verifyDoctor(event, id) {
+    if (event) event.preventDefault();
+    console.log('Attempting to verify doctor:', id);
+    
+    // UI Feedback: Disable button temporarily
+    const btn = event ? event.currentTarget : null;
+    const originalText = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Verifying...';
+    }
 
     try {
         const res = await fetch(`${API}/admin/doctors/${id}/verify`, {
             method: 'POST',
             headers: authHeaders()
         });
+        
+        const data = await res.json().catch(() => ({}));
+        
         if (res.ok) {
+            console.log('Doctor verified successfully:', data);
             if (typeof showToast === 'function') showToast('Doctor verified successfully!', 'success');
             else alert('Doctor verified successfully!');
-            loadAllUsers();
-            loadOverview();
+            
+            // Re-load data to sync UI
+            await loadAllUsers();
+            await loadOverview();
         } else {
-            const data = await res.json().catch(() => ({}));
+            console.error('Verification failed:', data);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
             alert(data.error || 'Verification failed');
         }
     } catch (e) {
-        alert('Network error verifying doctor');
+        console.error('Network error during verification:', e);
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+        alert('Verification failed: Network error or server is down. Please check your connection.');
     }
 }
 
