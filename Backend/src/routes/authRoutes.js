@@ -32,7 +32,7 @@ async function initializeEmailService() {
   const audit = {
     resend: { status: '❌ DISABLED', reason: 'Missing API Key' },
     twilio: { status: '❌ DISABLED', reason: 'Missing SID/Token' },
-    smtp: { status: '🚫 BLOCKED', reason: 'SMTP disabled (unsupported on Render)' }
+    smtp: { status: '❌ DISABLED', reason: 'Missing EMAIL_USER/EMAIL_PASS' }
   };
 
   // 1. RESEND (API-based, safe for Render)
@@ -46,6 +46,26 @@ async function initializeEmailService() {
     audit.twilio = { status: '✅ ENABLED', reason: 'Credentials found' };
   }
 
+  // 3. Gmail SMTP (fallback when Resend fails or is not configured)
+  if (config.emailUser && config.emailPass) {
+    gmailTransporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: config.emailUser,
+        pass: config.emailPass
+      }
+    });
+    try {
+      await gmailTransporter.verify();
+      audit.smtp = { status: '✅ ENABLED', reason: `Gmail SMTP ready (${config.emailUser})` };
+    } catch (err) {
+      gmailTransporter = null;
+      audit.smtp = { status: '❌ FAILED', reason: `Gmail SMTP error: ${err.message}` };
+    }
+  }
+
   // LOG AUDIT REPORT
   console.log('----------------------------------------------------');
   console.log(' COMMUNICATION SERVICE AUDIT');
@@ -55,8 +75,8 @@ async function initializeEmailService() {
   });
   console.log('----------------------------------------------------');
   
-  if (config.nodeEnv === 'development' && audit.resend.status.includes('❌')) {
-    console.log('💡 [TRIAL MODE] No Resend API key found. System will fallback to local UI notification for OTPs.');
+  if (config.nodeEnv === 'development' && audit.resend.status.includes('❌') && audit.smtp.status.includes('❌')) {
+    console.log('💡 [TRIAL MODE] No email service configured. OTP codes will appear in the UI response.');
   }
 }
 
@@ -118,11 +138,31 @@ async function sendRealEmail(to, otp) {
       } else {
         console.error(`⚠️ [Resend] API Error:`, error.message || error);
         if (String(error.message).includes('not verified')) {
-          console.log(`[💡] Hint: Domain ${fromEmail.split('@')[1]} is not verified in Resend.`);
+          console.log(`[💡] Hint: Domain ${fromEmail.split('@')[1]} is not verified in Resend. Falling back to Gmail SMTP...`);
         }
       }
     } catch (err) {
       console.error(`❌ [Resend] System Error:`, err.message);
+    }
+  }
+
+  // Fallback: Gmail SMTP
+  if (gmailTransporter) {
+    try {
+      console.log(`[📧] Attempting Gmail SMTP fallback...`);
+      await Promise.race([
+        gmailTransporter.sendMail({
+          from: `"HealthClo" <${config.emailUser}>`,
+          to: cleanTo,
+          subject,
+          html
+        }),
+        timeout(15000)
+      ]);
+      console.log(`✅ [Email] Delivered via Gmail SMTP to ${cleanTo}`);
+      return true;
+    } catch (err) {
+      console.error(`❌ [Gmail SMTP] Delivery failed:`, err.message);
     }
   }
 

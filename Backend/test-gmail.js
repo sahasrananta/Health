@@ -1,39 +1,35 @@
 import nodemailer from 'nodemailer';
 
-// Test Gmail SMTP credentials
-const emailUser = 'healthclo07@gmail.com';
-const emailPass = 'vpfukaqhiidbamyq';
-
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
   auth: {
-    user: emailUser,
-    pass: emailPass
+    user: "healthclo07@gmail.com",
+    pass: "qeqxtmorugffouxm" // your app password (no spaces)
   }
 });
 
 async function testGmail() {
   try {
     console.log('Testing Gmail SMTP...');
-    console.log('Email:', emailUser);
-    
+
+    // Verify connection first
+    await transporter.verify();
+    console.log('✅ SMTP connection verified');
+
     const info = await transporter.sendMail({
-      from: `"HealthClo" <${emailUser}>`,
-      to: emailUser,  // Send to same email for testing
+      from: `"HealthClo" <healthclo07@gmail.com>`,
+      to: "healthclo07@gmail.com",
       subject: 'Gmail SMTP Test',
-      html: '<h1>Gmail SMTP is working!</h1><p>OTP Test Code: 123456</p>'
+      html: '<h1>Working!</h1><p>OTP: 123456</p>'
     });
-    
-    console.log('✅ Email sent successfully!');
-    console.log('Message ID:', info.messageId);
+
+    console.log('✅ Email sent!');
+    console.log(info);
   } catch (error) {
-    console.error('❌ Error:');
-    console.error('Code:', error.code);
-    console.error('Message:', error.message);
-    console.error('Full error:', error);
+    console.error('❌ Error:', error);
   }
-  
-  process.exit(0);
 }
 
 testGmail();
