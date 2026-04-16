@@ -88,7 +88,7 @@
                 <div class="dashboard-header">
                     <div>
                         <h1><i class="bi bi-clipboard2-heart-fill"></i> My Health Dashboard</h1>
-                        <p>Welcome back, Sahasra! Manage your medical records securely.</p>
+                        <p id="welcome-message">Welcome back! Manage your medical records securely.</p>
                     </div>
                     <div class="d-flex gap-2">
                         <button class="btn-primary-sm" onclick="showSection('upload')">
@@ -131,8 +131,8 @@
                     <div class="stat-card warning">
                         <span class="stat-icon"><i class="bi bi-clock-history"></i></span>
                         <div class="stat-label">Last Updated</div>
-                        <div class="stat-value" style="font-size:1.5rem;">Today</div>
-                        <div class="stat-update">2 hours ago</div>
+                        <div class="stat-value" style="font-size:1.5rem;" id="stat-last-update-date">—</div>
+                        <div class="stat-update" id="stat-last-update-relative">Latest record date</div>
                     </div>
                 </div>
 
@@ -500,11 +500,19 @@
                             <div class="mb-3">
                                 <label class="form-label">Blood Type</label>
                                 <select class="form-select" id="profileBlood">
-                                    <option selected>O+</option>
-                                    <option>A+</option>
-                                    <option>B+</option>
-                                    <option>AB+</option>
+                                    <option value="O+">O+</option>
+                                    <option value="O-">O-</option>
+                                    <option value="A+">A+</option>
+                                    <option value="A-">A-</option>
+                                    <option value="B+">B+</option>
+                                    <option value="B-">B-</option>
+                                    <option value="AB+">AB+</option>
+                                    <option value="AB-">AB-</option>
                                 </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Account Since</label>
+                                <input type="text" class="form-control" id="profileCreatedAt" disabled>
                             </div>
                         </div>
                         

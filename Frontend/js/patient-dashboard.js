@@ -45,6 +45,10 @@ function populateUserName(user) {
     if (nameEl && user) {
         nameEl.textContent = user.first_name || 'Patient';
     }
+    const welcomeEl = document.getElementById('welcome-message');
+    if (welcomeEl && user) {
+        welcomeEl.innerHTML = `Welcome back, <strong>${user.first_name}</strong>! Manage your medical records securely.`;
+    }
 }
 
 // ============================================================
@@ -71,6 +75,11 @@ async function initProfile() {
 
         const phoneEl = document.getElementById('profilePhone');
         if (phoneEl) phoneEl.value = user.phone || '';
+
+        const createdEl = document.getElementById('profileCreatedAt');
+        if (createdEl && user.created_at) {
+            createdEl.value = new Date(user.created_at).toLocaleDateString([], { dateStyle: 'long' });
+        }
         
         // Update Health Summary widget
         const hBlood = document.getElementById('health-blood');
@@ -126,30 +135,39 @@ async function saveProfile() {
 }
 
 async function deleteAccount() {
-    if (!confirm('CRITICAL: Are you sure you want to permanently delete your account? This will remove all your medical records and cannot be undone.')) return;
+    const confirmed = confirm(
+        '⚠️ WARNING: This will permanently delete your account and ALL your medical records.\n\n' +
+        'This action CANNOT be undone.\n\n' +
+        'Click OK to proceed, or Cancel to keep your account.'
+    );
+    if (!confirmed) return;
+
+    const password = prompt('Please enter your password to confirm account deletion:');
+    if (!password) return;
     
     const btn = document.getElementById('deleteAccountBtn');
-    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Deleting...'; }
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Processsing...'; }
 
     try {
-        const res = await fetch(`${API}/auth/profile`, {
+        const res = await fetch(`${API}/auth/delete-account`, {
             method: 'DELETE',
-            headers: authHeaders()
+            headers: authHeaders(),
+            body: JSON.stringify({ password })
         });
         const data = await res.json().catch(() => ({}));
 
         if (res.ok) {
-            toast('Account deleted successfully. We are sorry to see you go.', 'info');
+            toast('✅ Account deleted successfully.', 'info');
             localStorage.clear();
             setTimeout(() => {
                 window.location.href = '../index.html';
             }, 2000);
         } else {
-            toast(data.error || 'Failed to delete account', 'error');
+            toast('❌ ' + (data.error || 'Failed to delete account'), 'error');
             if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-trash3-fill"></i> Delete My Account'; }
         }
     } catch (e) {
-        toast('Network error deleting account', 'error');
+        toast('❌ Network error', 'error');
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-trash3-fill"></i> Delete My Account'; }
     }
 }
@@ -300,13 +318,19 @@ async function loadAndRenderRecords() {
         const hVisits = document.getElementById('health-visits');
         if (hVisits) hVisits.textContent = `${records.length} visit${records.length !== 1 ? 's' : ''}`;
 
-        const hTest = document.getElementById('health-test');
-        if (hTest && records.length > 0) {
-            // Sort by date to find the most recent
-            const sorted = [...records].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
             const latest = sorted[0];
-            const dateStr = new Date(latest.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' });
+            const dateObj = new Date(latest.created_at);
+            const dateStr = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
             hTest.textContent = `${latest.department} · ${dateStr}`;
+
+            // Update Last Updated stat on overview
+            const lastUpdateDate = document.getElementById('stat-last-update-date');
+            if (lastUpdateDate) lastUpdateDate.textContent = dateStr;
+            const lastUpdateRel = document.getElementById('stat-last-update-relative');
+            if (lastUpdateRel) {
+                const diffDays = Math.floor((new Date() - dateObj) / (1000 * 60 * 60 * 24));
+                lastUpdateRel.textContent = diffDays === 0 ? 'Updated today' : `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+            }
         }
     } catch (e) {
         console.error(e);
