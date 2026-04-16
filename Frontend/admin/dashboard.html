@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Admin Dashboard - MediCare</title>
+    <title>Admin Dashboard - HealthClo</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="../css/style.css">
@@ -56,12 +56,12 @@
                 </div>
                 <div class="stat-card danger">
                     <div class="stat-label">Pending Reviews</div>
-                    <div class="stat-value" id="pending-reviews">12</div>
+                    <div class="stat-value" id="pending-reviews">0</div>
                     <div class="stat-update">Requires immediate attention</div>
                 </div>
                 <div class="stat-card success">
                     <div class="stat-label">Active Users</div>
-                    <div class="stat-value" id="active-users">48</div>
+                    <div class="stat-value" id="active-users">0</div>
                     <div class="stat-update">Online now</div>
                 </div>
                 <div class="stat-card info">
@@ -180,28 +180,7 @@
                         </tr>
                     </thead>
                     <tbody id="users-table-body">
-                        <tr>
-                            <td>Dr. Sarah Johnson</td>
-                            <td><span class="badge bg-primary">Doctor</span></td>
-                            <td>Cardiology</td>
-                            <td><span class="badge bg-success">Active</span></td>
-                            <td>Today 10:30 AM</td>
-                            <td>
-                                <button class="btn btn-sm btn-primary-sm me-2"><i class="bi bi-pencil"></i></button>
-                                <button class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>John Smith</td>
-                            <td><span class="badge bg-success">Patient</span></td>
-                            <td>Orthopedics</td>
-                            <td><span class="badge bg-warning">Inactive</span></td>
-                            <td>2 days ago</td>
-                            <td>
-                                <button class="btn btn-sm btn-primary-sm me-2"><i class="bi bi-pencil"></i></button>
-                                <button class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button>
-                            </td>
-                        </tr>
+                        <!-- Populated by JavaScript -->
                     </tbody>
                 </table>
             </div>
