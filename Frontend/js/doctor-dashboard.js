@@ -1,6 +1,6 @@
 /**
  * Doctor Dashboard - HealthClo
- * Wired to backend API for overview stats, patient lists, and appointments.
+ * Fully wired to backend API — profile, patients, records, appointments.
  */
 
 const API = '/api';
@@ -30,97 +30,153 @@ function checkAuth() {
 }
 
 // ============================================================
-//  DOCTOR PROFILE LOADING
+//  DOCTOR PROFILE — fetches fresh data from /api/auth/me
 // ============================================================
 async function loadDoctorProfile() {
     try {
-        const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
-        if (!user) return;
-
-        // Update navbar name
-        const navName = document.getElementById('navDoctorName');
-        if (navName) {
-            navName.textContent = `${user.first_name} ${user.last_name}`;
+        // Always fetch fresh from API so all registered fields are present
+        const res = await fetch(`${API}/auth/me`, { headers: authHeaders() });
+        if (!res.ok) {
+            console.warn('Could not fetch profile from server, using localStorage.');
+            populateProfileFromData(JSON.parse(localStorage.getItem('currentUser') || 'null'));
+            return;
         }
+        const { user } = await res.json();
 
-        // Update profile section
-        document.getElementById('profileFirstName').value = user.first_name || '';
-        document.getElementById('profileLastName').value = user.last_name || '';
-        document.getElementById('profileEmail').value = user.email || user.phone || '';
-        document.getElementById('profilePhone').value = user.phone || 'N/A';
-        document.getElementById('profileSpecialization').value = user.specialization || 'Not specified';
-        document.getElementById('profileLicenseNumber').value = user.license_number || 'Not provided';
-        document.getElementById('profileHospitalAffiliation').value = user.hospital_affiliation || 'Not provided';
+        // Keep localStorage in sync with fresh data
+        const cached = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        localStorage.setItem('currentUser', JSON.stringify({ ...cached, ...user }));
 
-        // Verification status
-        const verificationStatus = document.getElementById('verificationStatus');
-        if (user.is_verified) {
-            verificationStatus.innerHTML = '<i class="bi bi-check-circle-fill" style="color: #28a745;"></i> <strong style="color: #28a745;">Verified</strong> - Your profile is approved and visible to patients.';
-        } else {
-            verificationStatus.innerHTML = '<i class="bi bi-clock-history" style="color: #ffc107;"></i> <strong style="color: #ffc107;">Pending Verification</strong> - Your profile is under admin review.';
-        }
+        populateProfileFromData(user);
     } catch (e) {
-        console.warn('Profile loading error:', e);
+        console.warn('Profile load error:', e);
+        populateProfileFromData(JSON.parse(localStorage.getItem('currentUser') || 'null'));
     }
+}
+
+function populateProfileFromData(user) {
+    if (!user) return;
+
+    // Update navbar name
+    const navName = document.getElementById('navDoctorName');
+    if (navName) navName.innerHTML = `<i class="bi bi-person-circle"></i> Dr. ${user.first_name} ${user.last_name}`;
+
+    // Personal info
+    setVal('profileFirstName', user.first_name || '');
+    setVal('profileLastName', user.last_name || '');
+    setVal('profileEmail', user.email || '');
+    setVal('profilePhone', user.phone || 'Not provided');
+    setVal('profileDob', user.dob || 'Not provided');
+
+    // Professional info
+    setVal('profileSpecialization', user.specialization || 'Not specified');
+    setVal('profileLicenseNumber', user.license_number || 'Not provided');
+    setVal('profileHospitalAffiliation', user.hospital_affiliation || 'Not provided');
+
+    // Account dates
+    setVal('profileCreatedAt', user.created_at ? new Date(user.created_at).toLocaleDateString() : '—');
+
+    // Verification status
+    const verBox = document.getElementById('verificationStatus');
+    if (verBox) {
+        if (user.is_verified) {
+            verBox.className = 'alert alert-success mb-0';
+            verBox.innerHTML = '<i class="bi bi-check-circle-fill"></i> <strong>Verified</strong> — Your profile is approved and visible to patients.';
+        } else {
+            verBox.className = 'alert alert-warning mb-0';
+            verBox.innerHTML = '<i class="bi bi-clock-history"></i> <strong>Pending Verification</strong> — Your profile is under admin review. Some features are limited.';
+        }
+    }
+}
+
+function setVal(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
 }
 
 // ============================================================
 //  OVERVIEW STATS
 // ============================================================
 async function initDashboard() {
+    const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
+
+    // Show verification warning if pending
+    if (user && !user.is_verified) showVerificationWarning();
+
     try {
         const res = await fetch(`${API}/doctor/overview`, { headers: authHeaders() });
-        if (!res.ok) return;
+        if (!res.ok) {
+            showDashboardMessage('Could not load dashboard stats. Please try again.');
+            return;
+        }
         const { overview } = await res.json();
 
-        // Update stats grid
-        const totalPatients = document.getElementById('stat-total-patients');
-        const totalRecords = document.getElementById('stat-total-records');
-        const activeConsents = document.getElementById('stat-active-consents');
-        
-        if (totalPatients) totalPatients.textContent = overview.totalPatients || 0;
-        if (totalRecords) totalRecords.textContent = overview.totalRecords || 0;
-        if (activeConsents) activeConsents.textContent = overview.activeConsents || 0;
+        setTextContent('stat-total-patients', overview.totalPatients ?? 0);
+        setTextContent('stat-total-records', overview.totalRecords ?? 0);
+        setTextContent('stat-active-consents', overview.activeConsents ?? 0);
 
-        // Populate Recent Patients table in Overview
+        // Recent patients in overview table
         const recentTbody = document.getElementById('recent-patients-tbody');
-        if (recentTbody && overview.recentPatients && overview.recentPatients.length > 0) {
-            recentTbody.innerHTML = overview.recentPatients.map(p => `
-                <tr>
-                    <td><i class="bi bi-person-circle me-2 text-primary"></i> ${p.first_name} ${p.last_name}</td>
-                    <td><span class="badge badge-cardio">Cardiology</span></td>
-                    <td>${new Date(p.last_visit || Date.now()).toLocaleDateString()}</td>
-                    <td><span class="badge bg-success">Active</span></td>
-                    <td>
-                        <button class="btn btn-sm btn-primary-sm" onclick="viewPatientRecords('${p.id}')">
-                            <i class="bi bi-file-earmark"></i> View Records
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        // Show verification warning if not verified
-        const user = JSON.parse(localStorage.getItem('currentUser'));
-        if (user && !user.is_verified) {
-            showVerificationWarning();
+        if (recentTbody) {
+            if (overview.recentPatients && overview.recentPatients.length > 0) {
+                recentTbody.innerHTML = overview.recentPatients.map(p => `
+                    <tr>
+                        <td><i class="bi bi-person-circle me-2 text-primary"></i> ${p.first_name} ${p.last_name}</td>
+                        <td>${p.specialization_dept || '—'}</td>
+                        <td>${p.consent_date ? new Date(p.consent_date).toLocaleDateString() : '—'}</td>
+                        <td><span class="badge bg-success">Active Consent</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-primary-sm" onclick="showSection('patients')">
+                                <i class="bi bi-eye"></i> View
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                recentTbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center py-5">
+                            <i class="bi bi-person-slash" style="font-size: 2rem; color: #ccc;"></i>
+                            <p class="mt-2 text-muted">No patients have granted you access yet.</p>
+                            <small class="text-muted">Ask patients to search for your name and grant consent.</small>
+                        </td>
+                    </tr>`;
+            }
         }
     } catch (e) {
         console.warn('Overview stats error:', e);
+        showDashboardMessage('Network error loading stats.');
     }
 }
 
-function showVerificationWarning() {
+function setTextContent(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+}
+
+function showDashboardMessage(msg) {
     const main = document.querySelector('.main-content');
     if (!main) return;
-    
+    const el = document.createElement('div');
+    el.className = 'alert alert-danger mb-4';
+    el.innerHTML = `<i class="bi bi-exclamation-triangle"></i> ${msg}`;
+    main.prepend(el);
+    setTimeout(() => el.remove(), 5000);
+}
+
+function showVerificationWarning() {
+    // Avoid duplicate banners
+    if (document.getElementById('verif-warning-banner')) return;
+    const main = document.querySelector('.main-content');
+    if (!main) return;
     const warning = document.createElement('div');
+    warning.id = 'verif-warning-banner';
     warning.className = 'alert alert-warning mb-4 d-flex align-items-center';
     warning.innerHTML = `
         <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
         <div>
             <strong>Account Pending Verification</strong><br>
-            Your account is currently waiting for admin approval. You will have limited access until you are verified.
+            Your account is awaiting admin approval. Patient access is limited until verified.
         </div>
     `;
     main.prepend(warning);
@@ -130,12 +186,14 @@ function showVerificationWarning() {
 //  MY PATIENTS (from Consents)
 // ============================================================
 async function loadPatients() {
-    const tbody = document.querySelector('#patients-tbody');
+    const tbody = document.getElementById('patients-tbody');
     if (!tbody) return;
+
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary me-2"></div> Loading patients...</td></tr>`;
 
     try {
         const res = await fetch(`${API}/doctor/patients`, { headers: authHeaders() });
-        if (!res.ok) throw new Error('Failed to load patients');
+        if (!res.ok) throw new Error('API error');
         const { patients } = await res.json();
 
         if (patients.length === 0) {
@@ -146,97 +204,210 @@ async function loadPatients() {
                         <p class="mt-3 text-muted"><strong>No patients yet</strong></p>
                         <small>Patients will appear here once they grant you access to their medical records.</small>
                     </td>
-                </tr>
-            `;
+                </tr>`;
             return;
         }
 
-        tbody.innerHTML = patients.map(p => `
-            <tr>
-                <td><i class="bi bi-person-circle fs-5 me-2" style="color:var(--primary);"></i> ${p.first_name} ${p.last_name}</td>
-                <td>${p.dob ? new Date().getFullYear() - new Date(p.dob).getFullYear() : '—'}</td>
-                <td><span class="badge bg-success">Active Consent</span></td>
-                <td><span class="badge bg-info text-dark">Full Access</span></td>
-                <td>${new Date().toLocaleDateString()}</td>
-                <td>
-                    <button class="btn btn-sm btn-primary-sm" onclick="viewPatientRecords('${p.id}')">
-                        <i class="bi bi-eye"></i> View Records
-                    </button>
-                </td>
-            </tr>
-        `).join('');
+        // Search filter
+        const searchInput = document.getElementById('patient-search');
+        if (searchInput) {
+            searchInput.oninput = () => filterPatientTable(patients);
+        }
+
+        renderPatientRows(tbody, patients);
     } catch (e) {
         console.error('Patient load error:', e);
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="6" class="text-center py-4 text-danger">
-                    <i class="bi bi-exclamation-triangle"></i> Error loading patients
-                </td>
-            </tr>
-        `;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger"><i class="bi bi-exclamation-triangle"></i> Failed to load patients. Check your connection.</td></tr>`;
     }
+}
+
+function renderPatientRows(tbody, patients) {
+    const searchTerm = (document.getElementById('patient-search')?.value || '').toLowerCase();
+    const filtered = patients.filter(p =>
+        `${p.first_name} ${p.last_name}`.toLowerCase().includes(searchTerm)
+    );
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">No patients match your search.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(p => {
+        const age = p.dob ? new Date().getFullYear() - new Date(p.dob).getFullYear() : '—';
+        return `
+            <tr>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-person-circle fs-5 me-2" style="color:var(--primary);"></i>
+                        <div>
+                            <strong>${p.first_name} ${p.last_name}</strong><br>
+                            <small class="text-muted">${p.blood_type ? 'Blood: ' + p.blood_type : ''}</small>
+                        </div>
+                    </div>
+                </td>
+                <td>${age}</td>
+                <td><span class="badge bg-success">Active</span></td>
+                <td><span class="badge bg-info text-dark">Full Access</span></td>
+                <td>${p.consent_date ? new Date(p.consent_date).toLocaleDateString() : 'Active'}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary-sm" onclick="viewPatientRecords('${p.id}', '${p.first_name} ${p.last_name}')">
+                        <i class="bi bi-file-earmark-text"></i> Records
+                    </button>
+                </td>
+            </tr>`;
+    }).join('');
+}
+
+function filterPatientTable(patients) {
+    const tbody = document.getElementById('patients-tbody');
+    if (tbody) renderPatientRows(tbody, patients);
+}
+
+// ============================================================
+//  MEDICAL RECORDS — view records for consented patients
+// ============================================================
+async function loadMedicalRecords() {
+    const container = document.getElementById('doctor-files-by-dept');
+    if (!container) return;
+
+    container.innerHTML = `<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-3 text-muted">Loading accessible records...</p></div>`;
+
+    try {
+        // First get list of consented patients
+        const pRes = await fetch(`${API}/doctor/patients`, { headers: authHeaders() });
+        if (!pRes.ok) throw new Error('Could not load patients');
+        const { patients } = await pRes.json();
+
+        if (patients.length === 0) {
+            container.innerHTML = `
+                <div class="data-table p-5 text-center">
+                    <i class="bi bi-file-earmark-lock" style="font-size: 3rem; color:#ccc;"></i>
+                    <h5 class="mt-3 text-muted">No Records Accessible</h5>
+                    <p class="text-muted">You can only view medical records of patients who have granted you consent.</p>
+                </div>`;
+            return;
+        }
+
+        // Fetch records for each consented patient
+        const allRecords = [];
+        for (const patient of patients) {
+            try {
+                const rRes = await fetch(`${API}/records/patient/${patient.id}`, { headers: authHeaders() });
+                if (rRes.ok) {
+                    const { records } = await rRes.json();
+                    records.forEach(r => { r._patientName = `${patient.first_name} ${patient.last_name}`; });
+                    allRecords.push(...records);
+                }
+            } catch (_) { /* skip individual failures */ }
+        }
+
+        if (allRecords.length === 0) {
+            container.innerHTML = `
+                <div class="data-table p-5 text-center">
+                    <i class="bi bi-folder2-open" style="font-size: 3rem; color:#ccc;"></i>
+                    <h5 class="mt-3 text-muted">No Records Yet</h5>
+                    <p class="text-muted">Your ${patients.length} consented patient(s) haven't uploaded any records yet.</p>
+                </div>`;
+            return;
+        }
+
+        // Group by department
+        const byDept = {};
+        allRecords.forEach(r => {
+            const dept = r.department || 'Unclassified';
+            if (!byDept[dept]) byDept[dept] = [];
+            byDept[dept].push(r);
+        });
+
+        container.innerHTML = Object.entries(byDept).map(([dept, records]) => `
+            <div class="data-table mb-4">
+                <div class="p-3 border-bottom d-flex align-items-center">
+                    <i class="bi bi-folder-fill me-2" style="color:var(--primary);"></i>
+                    <strong>${dept}</strong>
+                    <span class="badge bg-secondary ms-2">${records.length} file${records.length > 1 ? 's' : ''}</span>
+                </div>
+                <table class="table mb-0">
+                    <thead>
+                        <tr>
+                            <th>File Name</th>
+                            <th>Patient</th>
+                            <th>Uploaded</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${records.map(r => `
+                            <tr>
+                                <td><i class="bi bi-file-earmark-text me-2 text-primary"></i>${r.original_name || r.filename || 'Record'}</td>
+                                <td>${r._patientName}</td>
+                                <td>${r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}</td>
+                                <td>
+                                    <a href="/api/records/${r.id}/download" class="btn btn-sm btn-outline-primary" target="_blank">
+                                        <i class="bi bi-download"></i> Download
+                                    </a>
+                                </td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>`).join('');
+    } catch (e) {
+        console.error('Medical records load error:', e);
+        container.innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> Failed to load records. Please try again.</div>`;
+    }
+}
+
+function viewPatientRecords(patientId, patientName) {
+    // Switch to medical records section and highlight or filter by patient
+    showSection('files');
+    // Small delay to let the section render, then optionally highlight
+    setTimeout(() => {
+        const header = document.querySelector('#files-section .dashboard-header p');
+        if (header) header.textContent = `Showing records for: ${patientName}`;
+    }, 200);
 }
 
 // ============================================================
 //  APPOINTMENTS
 // ============================================================
 async function loadAppointments() {
-    const tbody = document.querySelector('#appointments-section table tbody');
-    if (!tbody) return;
+    const tbody = document.getElementById('appointments-overview-tbody');
 
     try {
         const res = await fetch(`${API}/appointments/me`, { headers: authHeaders() });
-        if (!res.ok) return;
-        const { appointments } = await res.json();
-
-        if (appointments.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No appointments found</td></tr>';
-            const overviewTbody = document.getElementById('appointments-overview-tbody');
-            if (overviewTbody) overviewTbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No upcoming appointments</td></tr>';
+        if (!res.ok) {
+            if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Appointments feature not yet enabled.</td></tr>';
             return;
         }
+        const { appointments } = await res.json();
 
-        const appointmentRows = appointments.map(a => {
-            const statusClass = { scheduled: 'bg-info', completed: 'bg-success', cancelled: 'bg-danger' }[a.status] || 'bg-secondary';
-            return `
-                <tr>
-                    <td>${new Date(a.starts_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</td>
-                    <td>${a.patient_first_name} ${a.patient_last_name}</td>
-                    <td>${a.reason || 'Checkup'}</td>
-                    <td><span class="badge ${statusClass}">${a.status}</span></td>
-                    <td>
-                        <div class="dropdown">
-                            <button class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">Action</button>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="#" onclick="updateAppointment('${a.id}', 'completed')">Mark Completed</a></li>
-                                <li><a class="dropdown-item text-danger" href="#" onclick="updateAppointment('${a.id}', 'cancelled')">Cancel</a></li>
-                            </ul>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }).join('');
-
-        tbody.innerHTML = appointmentRows;
-        
-        // Also update overview table with upcoming only
-        const overviewTbody = document.getElementById('appointments-overview-tbody');
-        if (overviewTbody) {
-            overviewTbody.innerHTML = appointments.slice(0, 5).map(a => {
+        const appointmentRows = appointments.length === 0
+            ? '<tr><td colspan="5" class="text-center py-4 text-muted">No upcoming appointments</td></tr>'
+            : appointments.slice(0, 10).map(a => {
                 const statusClass = { scheduled: 'bg-info', completed: 'bg-success', cancelled: 'bg-danger' }[a.status] || 'bg-secondary';
                 return `
                     <tr>
                         <td>${new Date(a.starts_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</td>
-                        <td>${a.patient_first_name} ${a.patient_last_name}</td>
+                        <td>${a.patient_first_name || '—'} ${a.patient_last_name || ''}</td>
                         <td>${a.reason || 'Checkup'}</td>
                         <td><span class="badge ${statusClass}">${a.status}</span></td>
-                        <td><button class="btn btn-sm btn-primary-sm" onclick="showSection('appointments')">View</button></td>
-                    </tr>
-                `;
+                        <td>
+                            <button class="btn btn-sm btn-success me-1" onclick="updateAppointment('${a.id}', 'completed')">Done</button>
+                            <button class="btn btn-sm btn-danger" onclick="updateAppointment('${a.id}', 'cancelled')">Cancel</button>
+                        </td>
+                    </tr>`;
             }).join('');
-        }
+
+        if (tbody) tbody.innerHTML = appointmentRows;
+
+        // Update stat
+        setTextContent('stat-appointments-today', appointments.filter(a => {
+            const d = new Date(a.starts_at);
+            const today = new Date();
+            return d.toDateString() === today.toDateString() && a.status === 'scheduled';
+        }).length);
+
     } catch (e) {
-        console.error('Appointments load error:', e);
+        if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Appointments not available.</td></tr>';
     }
 }
 
@@ -247,38 +418,50 @@ async function updateAppointment(id, status) {
             headers: authHeaders(),
             body: JSON.stringify({ status })
         });
-        if (res.ok) {
-            loadAppointments();
-        }
+        if (res.ok) loadAppointments();
     } catch (e) {
         console.error(e);
     }
 }
 
 // ============================================================
-//  NAVIGATION & UI
+//  NAVIGATION
 // ============================================================
 function setupNavigation() {
     const navLinks = document.querySelectorAll('.sidebar-nav .nav-link');
     navLinks.forEach(link => {
-        link.addEventListener('click', function() {
+        link.addEventListener('click', function () {
             const section = this.dataset.section;
             navLinks.forEach(l => l.classList.remove('active'));
             this.classList.add('active');
-            
+
             document.querySelectorAll('.content-section').forEach(s => s.style.display = 'none');
             const selected = document.getElementById(`${section}-section`);
             if (selected) {
                 selected.style.display = 'block';
                 if (section === 'patients') loadPatients();
+                if (section === 'files') loadMedicalRecords();
                 if (section === 'appointments') loadAppointments();
-                if (section === 'overview') {
-                    initDashboard();
-                    loadAppointments(); // Load to update overview table
-                }
+                if (section === 'profile') loadDoctorProfile();
+                if (section === 'overview') initDashboard();
             }
         });
     });
+
+    // Mobile sidebar toggle
+    const toggleBtn = document.getElementById('sidebarToggle');
+    const overlay = document.getElementById('sidebarOverlay');
+    const sidebar = document.querySelector('.sidebar-nav');
+    if (toggleBtn && sidebar) {
+        toggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            if (overlay) overlay.classList.toggle('active');
+        });
+        if (overlay) overlay.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+        });
+    }
 }
 
 function showSection(section) {
@@ -286,24 +469,18 @@ function showSection(section) {
     if (navLink) navLink.click();
 }
 
-function viewPatientRecords(patientId) {
-    // Navigate to records or handle view
-    alert("Functionality to view patient specific records is coming in next release (Requires Consent check logic).");
-}
-
 // ============================================================
-//  PROFILE MANAGEMENT
+//  ACCOUNT MANAGEMENT
 // ============================================================
 async function showDeleteAccountModal() {
     const confirmed = confirm(
-        '⚠️ WARNING: This will permanently delete your account and all associated data.\n\n' +
+        '⚠️ WARNING: This will permanently delete your account and ALL associated data.\n\n' +
         'This action CANNOT be undone.\n\n' +
-        'Click OK to proceed with deletion, or Cancel to keep your account.'
+        'Click OK to proceed, or Cancel to keep your account.'
     );
-
     if (!confirmed) return;
 
-    const password = prompt('Please enter your password to confirm account deletion:');
+    const password = prompt('Enter your current password to confirm deletion:');
     if (!password) return;
 
     try {
@@ -314,17 +491,16 @@ async function showDeleteAccountModal() {
         });
 
         if (res.ok) {
-            alert('✅ Account deleted successfully. Redirecting to homepage...');
+            alert('✅ Account deleted successfully.');
             localStorage.removeItem('authToken');
             localStorage.removeItem('currentUser');
             window.location.href = '../index.html';
         } else {
             const data = await res.json();
-            alert('❌ Error: ' + (data.error || 'Failed to delete account'));
+            alert('❌ ' + (data.error || 'Failed to delete account'));
         }
     } catch (e) {
-        console.error('Delete account error:', e);
-        alert('❌ Error deleting account. Please try again.');
+        alert('❌ Network error. Please try again.');
     }
 }
 
@@ -338,7 +514,7 @@ async function showChangePasswordModal() {
         return;
     }
 
-    const confirmPassword = prompt('Confirm your new password:');
+    const confirmPassword = prompt('Confirm new password:');
     if (confirmPassword !== newPassword) {
         alert('❌ Passwords do not match');
         return;
@@ -348,49 +524,34 @@ async function showChangePasswordModal() {
         const res = await fetch(`${API}/auth/change-password`, {
             method: 'POST',
             headers: authHeaders(),
-            body: JSON.stringify({
-                currentPassword,
-                newPassword
-            })
+            body: JSON.stringify({ currentPassword, newPassword })
         });
-
+        const data = await res.json();
         if (res.ok) {
             alert('✅ Password changed successfully');
         } else {
-            const data = await res.json();
-            alert('❌ Error: ' + (data.error || 'Failed to change password'));
+            alert('❌ ' + (data.error || 'Failed to change password'));
         }
     } catch (e) {
-        console.error('Change password error:', e);
-        alert('❌ Error changing password. Please try again.');
+        alert('❌ Network error. Please try again.');
     }
 }
 
 function downloadAccountData() {
     const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
     if (!user) return;
-
-    const data = {
-        exportDate: new Date().toISOString(),
-        profile: user,
-        note: 'This is an export of your account data in JSON format.'
-    };
-
-    const dataStr = JSON.stringify(data, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
+    const data = { exportDate: new Date().toISOString(), profile: user };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `healthclo-account-${user.id}.json`;
+    link.download = `healthclo-doctor-${user.id}.json`;
     link.click();
     URL.revokeObjectURL(url);
-
-    alert('✅ Account data downloaded successfully');
 }
 
 function logoutDoctor() {
-    const confirmed = confirm('Are you sure you want to logout?');
-    if (confirmed) {
+    if (confirm('Are you sure you want to logout?')) {
         localStorage.removeItem('authToken');
         localStorage.removeItem('currentUser');
         window.location.href = '../login.html';
@@ -404,5 +565,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!checkAuth()) return;
     loadDoctorProfile();
     initDashboard();
+    loadAppointments();
     setupNavigation();
 });

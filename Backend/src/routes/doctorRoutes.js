@@ -27,14 +27,33 @@ doctorRoutes.get('/overview', requireAuth, requireRole('doctor'), (req, res) => 
       AND revoked_at IS NULL
   `).get(req.user.id).c;
 
+  // Recent patients (up to 5) with consent date
+  const recentPatients = db.prepare(`
+    SELECT DISTINCT
+      p.id,
+      p.first_name,
+      p.last_name,
+      p.dob,
+      p.blood_type,
+      c.created_at AS consent_date
+    FROM consents c
+    JOIN users p ON p.id = c.patient_id
+    WHERE c.doctor_id = ?
+      AND c.revoked_at IS NULL
+    ORDER BY c.created_at DESC
+    LIMIT 5
+  `).all(req.user.id);
+
   res.json({
     overview: {
       totalPatients,
       totalRecords,
-      activeConsents: pendingConsents
+      activeConsents: pendingConsents,
+      recentPatients
     }
   });
 });
+
 
 // List patients that doctor has consent to view
 doctorRoutes.get('/patients', requireAuth, requireRole('doctor'), (req, res) => {

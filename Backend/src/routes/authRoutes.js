@@ -364,7 +364,7 @@ authRoutes.post('/login-otp', (req, res) => {
 
 authRoutes.get('/me', requireAuth, (req, res) => {
   const db = getDb();
-  const user = db.prepare('SELECT id, role, email, phone, first_name, last_name, dob, blood_type, is_verified, created_at FROM users WHERE id = ?').get(req.user.id);
+  const user = db.prepare('SELECT id, role, email, phone, first_name, last_name, dob, blood_type, specialization, license_number, hospital_affiliation, is_verified, created_at FROM users WHERE id = ?').get(req.user.id);
   return res.json({ user });
 });
 
