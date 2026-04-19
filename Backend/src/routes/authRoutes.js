@@ -369,7 +369,7 @@ authRoutes.get('/me', requireAuth, (req, res) => {
 });
 
 authRoutes.put('/profile', requireAuth, (req, res) => {
-  const { firstName, lastName, dob, bloodType, email, phone } = req.body;
+  const { firstName, lastName, dob, bloodType, email, phone, specialization, licenseNumber, hospitalAffiliation } = req.body;
   const db = getDb();
   
   if (email && email !== req.user.email) {
@@ -384,13 +384,16 @@ authRoutes.put('/profile', requireAuth, (req, res) => {
         dob = COALESCE(?, dob),
         blood_type = COALESCE(?, blood_type),
         email = COALESCE(?, email),
-        phone = COALESCE(?, phone)
+        phone = COALESCE(?, phone),
+        specialization = COALESCE(?, specialization),
+        license_number = COALESCE(?, license_number),
+        hospital_affiliation = COALESCE(?, hospital_affiliation)
     WHERE id = ?
   `).run(
-    firstName || null, lastName || null, dob || null, bloodType || null, email || null, phone || null, req.user.id
+    firstName || null, lastName || null, dob || null, bloodType || null, email || null, phone || null, specialization || null, licenseNumber || null, hospitalAffiliation || null, req.user.id
   );
 
-  const updatedUser = db.prepare('SELECT id, role, email, phone, first_name, last_name, dob, blood_type, is_verified, created_at FROM users WHERE id = ?').get(req.user.id);
+  const updatedUser = db.prepare('SELECT id, role, email, phone, first_name, last_name, dob, blood_type, specialization, license_number, hospital_affiliation, is_verified, created_at FROM users WHERE id = ?').get(req.user.id);
   res.json({ message: 'Profile updated successfully', user: updatedUser });
 });
 

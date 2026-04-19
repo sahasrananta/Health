@@ -82,3 +82,29 @@ adminRoutes.get('/audit-logs', requireAuth, requireRole('admin'), (req, res) => 
   res.json({ logs });
 });
 
+// Admin: Delete a User
+adminRoutes.delete('/users/:id', requireAuth, requireRole('admin'), (req, res) => {
+  const { id } = req.params;
+  const db = getDb();
+  
+  console.log(`[Admin Action] Delete request for user: ${id}`);
+  
+  // Prevent admin from deleting themselves
+  if (id === req.user.id) {
+    return res.status(403).json({ error: 'Admins cannot delete their own profile' });
+  }
+
+  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(id);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  const result = db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  console.log(`[Admin Action] User ${id} deleted`);
+  
+  res.json({ 
+    message: 'User deleted successfully', 
+    id,
+    changes: result.changes 
+  });
+});

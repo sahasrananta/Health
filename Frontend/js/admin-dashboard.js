@@ -87,7 +87,7 @@ async function loadAllUsers() {
             const statusLabel = u.is_verified ? 'Verified' : 'Pending';
             const roleClass = { patient: 'bg-info text-dark', doctor: 'bg-primary' }[u.role] || 'bg-secondary';
 
-            let actions = `<button class="btn btn-sm btn-outline-danger" title="Delete User"><i class="bi bi-trash"></i></button>`;
+            let actions = `<button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteUser('${u.id}')" title="Delete User"><i class="bi bi-trash"></i></button>`;
             if (u.role === 'doctor' && !u.is_verified) {
                 actions = `<button type="button" class="btn btn-sm btn-success me-2" onclick="verifyDoctor(event, '${u.id}')" title="Verify Doctor"><i class="bi bi-check-circle"></i> Verify</button>` + actions;
             }
@@ -160,6 +160,37 @@ async function verifyDoctor(event, id) {
         }
         alert('Verification failed: Network error or server is down. Please check your connection.');
     }
+}
+
+async function deleteUser(id) {
+    if (!confirm('Are you sure you want to permanently delete this user? This action cannot be undone.')) return;
+    
+    try {
+        const res = await fetch(`${API}/admin/users/${id}`, {
+            method: 'DELETE',
+            headers: authHeaders()
+        });
+        
+        const data = await res.json().catch(() => ({}));
+        
+        if (res.ok) {
+            if (typeof showToast === 'function') showToast('User deleted successfully', 'success');
+            else alert('User deleted successfully');
+            
+            await loadAllUsers();
+            await loadOverview();
+        } else {
+            console.error('Deletion failed:', data);
+            alert(data.error || 'Failed to delete user');
+        }
+    } catch (e) {
+        console.error('Network error during deletion:', e);
+        alert('Network error or server is down.');
+    }
+}
+
+async function uploadFiles() {
+    alert('Admin bulk upload functionality is coming soon.');
 }
 
 // ============================================================

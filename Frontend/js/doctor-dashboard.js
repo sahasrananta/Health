@@ -470,8 +470,58 @@ function showSection(section) {
 }
 
 // ============================================================
-//  ACCOUNT MANAGEMENT
+//  ACCOUNT MANAGEMENT & PROFILE SAVING
 // ============================================================
+async function saveProfile() {
+    const btn = document.getElementById('saveProfileBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Saving...';
+    }
+    
+    const firstName = document.getElementById('profileFirstName')?.value || '';
+    const lastName = document.getElementById('profileLastName')?.value || '';
+    const dob = document.getElementById('profileDob')?.value || '';
+    const email = document.getElementById('profileEmail')?.value || '';
+    const phone = document.getElementById('profilePhone')?.value || '';
+    const specialization = document.getElementById('profileSpecialization')?.value || '';
+    const licenseNumber = document.getElementById('profileLicenseNumber')?.value || '';
+    const hospitalAffiliation = document.getElementById('profileHospitalAffiliation')?.value || '';
+
+    const payload = {
+        firstName, lastName, dob, email, phone, specialization, licenseNumber, hospitalAffiliation
+    };
+
+    try {
+        const res = await fetch(`${API}/auth/profile`, {
+            method: 'PUT',
+            headers: authHeaders(),
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok) {
+            alert('✅ Profile updated successfully!');
+            if (data.user) {
+                // Update local storage and UI
+                const cached = JSON.parse(localStorage.getItem('currentUser') || '{}');
+                localStorage.setItem('currentUser', JSON.stringify({ ...cached, ...data.user }));
+                populateProfileFromData(data.user);
+            }
+        } else {
+            alert('❌ ' + (data.error || 'Failed to update profile'));
+        }
+    } catch (e) {
+        console.error('Network error saving profile', e);
+        alert('❌ Network error saving profile');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-lg"></i> Save Changes';
+        }
+    }
+}
+
 async function showDeleteAccountModal() {
     const confirmed = confirm(
         '⚠️ WARNING: This will permanently delete your account and ALL associated data.\n\n' +

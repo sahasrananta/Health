@@ -173,23 +173,23 @@
                         <h5 class="mb-4"><i class="bi bi-person-fill"></i> Personal Information</h5>
                         <div class="mb-3">
                             <label class="form-label fw-bold">First Name</label>
-                            <input type="text" class="form-control" id="profileFirstName" disabled>
+                            <input type="text" class="form-control" id="profileFirstName">
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">Last Name</label>
-                            <input type="text" class="form-control" id="profileLastName" disabled>
+                            <input type="text" class="form-control" id="profileLastName">
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">Email</label>
-                            <input type="email" class="form-control" id="profileEmail" disabled>
+                            <input type="email" class="form-control" id="profileEmail">
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">Phone</label>
-                            <input type="tel" class="form-control" id="profilePhone" disabled>
+                            <input type="tel" class="form-control" id="profilePhone">
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">Date of Birth</label>
-                            <input type="text" class="form-control" id="profileDob" disabled>
+                            <input type="date" class="form-control" id="profileDob">
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">Account Since</label>
@@ -202,15 +202,15 @@
                         <h5 class="mb-4"><i class="bi bi-briefcase-fill"></i> Professional Information</h5>
                         <div class="mb-3">
                             <label class="form-label fw-bold">Specialization</label>
-                            <input type="text" class="form-control" id="profileSpecialization" disabled>
+                            <input type="text" class="form-control" id="profileSpecialization">
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">License Number</label>
-                            <input type="text" class="form-control" id="profileLicenseNumber" disabled>
+                            <input type="text" class="form-control" id="profileLicenseNumber">
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">Hospital Affiliation</label>
-                            <input type="text" class="form-control" id="profileHospitalAffiliation" disabled>
+                            <input type="text" class="form-control" id="profileHospitalAffiliation">
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">Verification Status</label>
@@ -218,6 +218,9 @@
                                 <i class="bi bi-info-circle"></i> Checking status...
                             </div>
                         </div>
+                        <button class="btn btn-success w-100 mt-2" onclick="saveProfile()" id="saveProfileBtn">
+                            <i class="bi bi-check-lg"></i> Save Changes
+                        </button>
                     </div>
                 </div>
             </div>
