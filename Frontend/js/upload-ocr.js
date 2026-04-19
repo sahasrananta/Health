@@ -34,7 +34,7 @@ async function uploadDocument() {
     }
 
     try {
-        const response = await fetch('http://localhost:4000/api/records/patients/me', {
+        const response = await fetch('/api/records/patients/me', {
             method: 'POST',
             headers: {
                 Authorization: `Bearer ${token}`
