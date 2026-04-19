@@ -318,20 +318,23 @@ async function loadAndRenderRecords() {
         const hVisits = document.getElementById('health-visits');
         if (hVisits) hVisits.textContent = `${records.length} visit${records.length !== 1 ? 's' : ''}`;
 
-            const latest = sorted[0];
-            const dateObj = new Date(latest.created_at);
-            const dateStr = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
-            hTest.textContent = `${latest.department} · ${dateStr}`;
+            if (records.length > 0) {
+                const sorted = [...records].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                const latest = sorted[0];
+                const dateObj = new Date(latest.created_at);
+                const dateStr = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
+                const hTest = document.getElementById('health-test');
+                if (hTest) hTest.textContent = `${latest.department} · ${dateStr}`;
 
-            // Update Last Updated stat on overview
-            const lastUpdateDate = document.getElementById('stat-last-update-date');
-            if (lastUpdateDate) lastUpdateDate.textContent = dateStr;
-            const lastUpdateRel = document.getElementById('stat-last-update-relative');
-            if (lastUpdateRel) {
-                const diffDays = Math.floor((new Date() - dateObj) / (1000 * 60 * 60 * 24));
-                lastUpdateRel.textContent = diffDays === 0 ? 'Updated today' : `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+                // Update Last Updated stat on overview
+                const lastUpdateDate = document.getElementById('stat-last-update-date');
+                if (lastUpdateDate) lastUpdateDate.textContent = dateStr;
+                const lastUpdateRel = document.getElementById('stat-last-update-relative');
+                if (lastUpdateRel) {
+                    const diffDays = Math.floor((new Date() - dateObj) / (1000 * 60 * 60 * 24));
+                    lastUpdateRel.textContent = diffDays === 0 ? 'Updated today' : `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+                }
             }
-        }
     } catch (e) {
         console.error(e);
         container.innerHTML = '<p style="color:var(--danger);padding:20px;">Network error loading records.</p>';
