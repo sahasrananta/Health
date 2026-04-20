@@ -6,7 +6,40 @@
 document.addEventListener("DOMContentLoaded", function () {
     console.log("MediCare System Loaded Successfully");
     initializeAnimations();
+    initializeMobileMenu();
 });
+
+/**
+ * Initialize mobile menu toggle and overlay
+ */
+function initializeMobileMenu() {
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebar = document.querySelector('.sidebar-nav');
+    const overlay = document.getElementById('sidebarOverlay');
+
+    if (sidebarToggle && sidebar && overlay) {
+        sidebarToggle.addEventListener('click', function() {
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        });
+
+        overlay.addEventListener('click', function() {
+            sidebar.classList.remove('active');
+            overlay.classList.remove('active');
+        });
+
+        // Close sidebar when clicking on a nav link on mobile devices
+        const navLinks = sidebar.querySelectorAll('.nav-link');
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth < 992) {
+                    sidebar.classList.remove('active');
+                    overlay.classList.remove('active');
+                }
+            });
+        });
+    }
+}
 
 /**
  * Initialize animations and effects

@@ -4,7 +4,7 @@ export const roleSchema = z.enum(['patient', 'doctor', 'admin']);
 
 export const registerSchema = z.object({
   role: z.enum(['patient', 'doctor']).default('patient'),
-  email: z.string().email().optional(),
+  email: z.string().trim().toLowerCase().email().optional(),
   phone: z.string().min(8).max(20).optional(),
   password: z.string().min(8).max(128),
   firstName: z.string().min(1).max(80),
@@ -21,7 +21,7 @@ export const registerSchema = z.object({
   });
 
 export const loginSchema = z.object({
-  email: z.string().email().optional(),
+  email: z.string().trim().toLowerCase().email().optional(),
   phone: z.string().min(8).max(20).optional(),
   password: z.string().min(1).max(128)
 }).refine(v => v.email || v.phone, { message: 'Either email or phone is required' });

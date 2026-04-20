@@ -369,7 +369,8 @@ authRoutes.get('/me', requireAuth, (req, res) => {
 });
 
 authRoutes.put('/profile', requireAuth, (req, res) => {
-  const { firstName, lastName, dob, bloodType, email, phone, specialization, licenseNumber, hospitalAffiliation } = req.body;
+  let { firstName, lastName, dob, bloodType, email, phone, specialization, licenseNumber, hospitalAffiliation } = req.body;
+  if (email) email = email.trim().toLowerCase();
   const db = getDb();
   
   if (email && email !== req.user.email) {
@@ -399,7 +400,7 @@ authRoutes.put('/profile', requireAuth, (req, res) => {
 
 authRoutes.post('/send-otp', async (req, res) => {
   const { phone, type } = req.body;
-  const email = req.body.email ? req.body.email.trim() : null;
+  const email = req.body.email ? req.body.email.trim().toLowerCase() : null;
   const identifier = email || phone;
   if (!identifier) return res.status(400).json({ error: 'Email or phone required' });
   
@@ -485,7 +486,8 @@ authRoutes.post('/send-otp', async (req, res) => {
 });
 
 authRoutes.post('/verify-otp', (req, res) => {
-  const { email, phone, otp } = req.body;
+  let { email, phone, otp } = req.body;
+  if (email) email = email.trim().toLowerCase();
   const identifier = email || phone;
 
   if (!identifier || !otp) return res.status(400).json({ error: 'Identifier and OTP required' });
@@ -504,7 +506,8 @@ authRoutes.post('/verify-otp', (req, res) => {
 
 // Check OTP status (remaining time)
 authRoutes.post('/check-otp-status', (req, res) => {
-  const { email, phone } = req.body;
+  let { email, phone } = req.body;
+  if (email) email = email.trim().toLowerCase();
   const identifier = email || phone;
 
   if (!identifier) return res.status(400).json({ error: 'Email or phone required' });
